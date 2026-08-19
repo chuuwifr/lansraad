@@ -47,6 +47,8 @@ const Save = (p) => <Icon {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2
 const Check = (p) => <Icon {...p}><polyline points="20 6 9 17 4 12" /></Icon>;
 const Palette = (p) => <Icon {...p}><circle cx="9" cy="9" r="6" /><circle cx="15" cy="9" r="6" /><circle cx="12" cy="15" r="6" /></Icon>;
 const ImageIcon = (p) => <Icon {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></Icon>;
+const Download = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></Icon>;
+const Upload = (p) => <Icon {...p}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></Icon>;
 
 const COLORS = {
   bgVoid: '#0a0906',
@@ -1467,6 +1469,8 @@ function LandsraadGalaxyMap() {
   const [settingsImageError, setSettingsImageError] = useState(false);
   const [imageCache, setImageCache] = useState({});
   const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [exportError, setExportError] = useState(false);
 
   const mountRef = useRef(null);
   const labelRefs = useRef({});
@@ -2274,6 +2278,121 @@ function LandsraadGalaxyMap() {
     });
   }
 
+  // ---- Export to a .json file (images embedded inline, so the file is fully portable) ----
+  function handleExportJson() {
+    setExportError(false);
+    try {
+      const exportPlanets = planets.map((p) => ({
+        ...p,
+        imageUrl: resolveImage(p.imageUrl),
+        crestUrl: resolveImage(p.crestUrl),
+      }));
+      const exportSettings = {
+        skyboxUrl: resolveImage(mapSettings.skyboxUrl),
+        bannerUrl: resolveImage(mapSettings.bannerUrl),
+        panelBgUrl: resolveImage(mapSettings.panelBgUrl),
+      };
+      const payload = {
+        format: 'landsraad-galaxy-map',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        planets: exportPlanets,
+        routes,
+        mapSettings: exportSettings,
+      };
+      const json = JSON.stringify(payload, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `carte-landsraad-${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) {
+      setExportError(true);
+    }
+  }
+
+  // Applies a parsed import payload: clears old images, migrates any embedded
+  // base64 images into IndexedDB (same helper used to upgrade legacy saves),
+  // then swaps in the new planets/routes/settings.
+  async function applyImportedData(data) {
+    try {
+      await idbClearImages();
+    } catch (e) {
+      // proceed anyway — worst case a few old entries linger
+    }
+
+    const putPromises = [];
+    const rawPlanets = Array.isArray(data.planets) ? data.planets : [];
+    const importedPlanets = rawPlanets.map((p) => ({
+      ...p,
+      id: p.id || makeId(p.name || 'planete'),
+      imageUrl: migrateLegacyImage(p.imageUrl, putPromises),
+      crestUrl: migrateLegacyImage(p.crestUrl, putPromises),
+    }));
+    const rawSettings = data.mapSettings || {};
+    const importedSettings = {
+      skyboxUrl: migrateLegacyImage(rawSettings.skyboxUrl, putPromises),
+      bannerUrl: migrateLegacyImage(rawSettings.bannerUrl, putPromises),
+      panelBgUrl: migrateLegacyImage(rawSettings.panelBgUrl, putPromises),
+    };
+    const importedRoutes = Array.isArray(data.routes) ? data.routes : [];
+
+    try {
+      await Promise.all(putPromises);
+    } catch (e) {
+      // individual failures are already swallowed inside migrateLegacyImage's put call
+    }
+
+    let cache = {};
+    try {
+      cache = await idbGetAllImages();
+    } catch (e) {
+      cache = {};
+    }
+
+    setImageCache(cache);
+    setPlanets(importedPlanets.length ? importedPlanets : DEFAULT_PLANETS);
+    setRoutes(importedRoutes);
+    setMapSettings(importedSettings);
+    setSelectedId(null);
+  }
+
+  function handleImportJsonFile(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setImportError('');
+    const reader = new FileReader();
+    reader.onerror = () => setImportError("Impossible de lire ce fichier.");
+    reader.onload = () => {
+      let data;
+      try {
+        data = JSON.parse(reader.result);
+      } catch (err) {
+        setImportError("Ce fichier n'est pas un JSON valide.");
+        return;
+      }
+      if (!data || typeof data !== 'object' || !Array.isArray(data.planets)) {
+        setImportError("Ce fichier ne ressemble pas à une carte du Landsraad exportée (champ « planets » manquant).");
+        return;
+      }
+      const count = data.planets.length;
+      setConfirmDialog({
+        message: `Remplacer la carte actuelle par ce fichier (${count} planète${count > 1 ? 's' : ''}) ? Tes données actuelles seront perdues.`,
+        onConfirm: () => {
+          setConfirmDialog(null);
+          applyImportedData(data);
+        },
+      });
+    };
+    reader.readAsText(file);
+  }
+
   function openNewPlanetForm() {
     setImageError(false);
     originalPlanetImagesRef.current = { imageUrl: '', crestUrl: '' };
@@ -2925,6 +3044,43 @@ function LandsraadGalaxyMap() {
             <button onClick={addRoute} className="lgm-btn flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded" style={toolbarBtnStyle(false)}>
               <Link2 size={13} /> Ajouter la route
             </button>
+          </div>
+
+          <p className="text-xs mb-2" style={{ color: COLORS.textMuted, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em' }}>
+            FICHIER
+          </p>
+          <div className="flex flex-col gap-2 mb-5">
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportJson}
+                disabled={!imagesLoaded}
+                title={imagesLoaded ? '' : 'Chargement des images en cours…'}
+                className="lgm-btn flex-1 flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded"
+                style={{ ...toolbarBtnStyle(false), opacity: imagesLoaded ? 1 : 0.5, cursor: imagesLoaded ? 'pointer' : 'not-allowed' }}
+              >
+                <Download size={13} /> Exporter (.json)
+              </button>
+              <label
+                className="lgm-btn flex-1 flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded cursor-pointer"
+                style={toolbarBtnStyle(false)}
+              >
+                <Upload size={13} /> Importer
+                <input type="file" accept="application/json,.json" onChange={handleImportJsonFile} className="hidden" />
+              </label>
+            </div>
+            {exportError && (
+              <p className="text-xs" style={{ color: COLORS.crimson }}>
+                L'export a échoué — réessaie.
+              </p>
+            )}
+            {importError && (
+              <p className="text-xs" style={{ color: COLORS.crimson }}>
+                {importError}
+              </p>
+            )}
+            <p className="text-xs leading-relaxed" style={{ color: COLORS.textMuted }}>
+              Le fichier exporté inclut les images personnalisées et peut être partagé ou rechargé sur un autre appareil.
+            </p>
           </div>
 
           <button
