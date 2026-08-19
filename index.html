@@ -1,0 +1,3291 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Carte du Landsraad</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #050403; }
+  #root { height: 100vh; width: 100vw; }
+  .lgm-preboot { color:#a89a7f; font-family: Georgia, 'Times New Roman', serif; letter-spacing: 0.08em; display:flex; align-items:center; justify-content:center; height:100%; font-size: 13px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div id="root">
+  <div class="lgm-preboot">
+    Chargement de la carte…
+  </div>
+</div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+function Icon({ children, size = 16, style, className }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round" style={style} className={className}>
+      {children}
+    </svg>
+  );
+}
+const X = (p) => <Icon {...p}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></Icon>;
+const Plus = (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></Icon>;
+const Pencil = (p) => <Icon {...p}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></Icon>;
+const Trash2 = (p) => <Icon {...p}><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></Icon>;
+const Compass = (p) => <Icon {...p}><circle cx="12" cy="12" r="9" /><polygon points="15 9 11 11 9 15 13 13 15 9" /></Icon>;
+const Square = (p) => <Icon {...p}><rect x="5" y="5" width="14" height="14" rx="1" /></Icon>;
+const Settings = (p) => <Icon {...p}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9c.2.6.7 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" /></Icon>;
+const RotateCcw = (p) => <Icon {...p}><polyline points="1 4 1 10 7 10" /><path d="M3.5 15a9 9 0 1 0 2-9.5L1 10" /></Icon>;
+const Loader2 = (p) => <Icon {...p}><path d="M21 12a9 9 0 1 1-9-9" /></Icon>;
+const Link2 = (p) => <Icon {...p}><path d="M9 17H7A5 5 0 0 1 7 7h2" /><path d="M15 7h2a5 5 0 1 1 0 10h-2" /><line x1="8" y1="12" x2="16" y2="12" /></Icon>;
+const Save = (p) => <Icon {...p}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></Icon>;
+const Check = (p) => <Icon {...p}><polyline points="20 6 9 17 4 12" /></Icon>;
+const Palette = (p) => <Icon {...p}><circle cx="9" cy="9" r="6" /><circle cx="15" cy="9" r="6" /><circle cx="12" cy="15" r="6" /></Icon>;
+const ImageIcon = (p) => <Icon {...p}><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></Icon>;
+
+const COLORS = {
+  bgVoid: '#0a0906',
+  panel: '#161209',
+  panelBorder: '#332a1c',
+  text: '#ece2cd',
+  textMuted: '#a89a7f',
+  accent: '#c8722f',
+  accentSoft: 'rgba(200,114,47,0.15)',
+  gold: '#d4a24c',
+  jade: '#3f8f75',
+  crimson: '#a33636',
+  slate: '#7c8794',
+  violet: '#6f5da0',
+  refuge: '#5a6a8a',
+  dim: '#4a463f',
+};
+
+const FACTIONS = ['Maison Impériale', 'Grande Maison', 'Faction Majeure', 'Maison Mineure', 'Refuge'];
+const FACTION_COLORS = {
+  'Maison Impériale': COLORS.gold,
+  'Grande Maison': COLORS.jade,
+  'Faction Majeure': COLORS.violet,
+  'Maison Mineure': '#4f8ad6',
+  Refuge: COLORS.slate,
+};
+
+const ENVIRONMENTS = [
+  { value: 'desert', label: 'Désertique', color: '#c8933f' },
+  { value: 'ocean', label: 'Océanique', color: '#2f74a8' },
+  { value: 'ice', label: 'Glaciaire', color: '#b8d4de' },
+  { value: 'volcanic', label: 'Volcanique', color: '#9a3226' },
+  { value: 'jungle', label: 'Jungle', color: '#2f7a4a' },
+  { value: 'temperate', label: 'Tempérée', color: '#7a9a5a' },
+  { value: 'barren', label: 'Aride / Rocheuse', color: '#6b5f52' },
+  { value: 'industrial', label: 'Industrielle', color: '#7a8592' },
+  { value: 'toxic', label: 'Toxique', color: '#a8c93a' },
+];
+const ENVIRONMENT_COLORS = Object.fromEntries(ENVIRONMENTS.map((e) => [e.value, e.color]));
+const ENVIRONMENT_LABELS = Object.fromEntries(ENVIRONMENTS.map((e) => [e.value, e.label]));
+
+const SIZES = [
+  { value: 'small', label: 'Petite' },
+  { value: 'medium', label: 'Moyenne' },
+  { value: 'large', label: 'Grande' },
+];
+const SIZE_RADIUS = { small: 0.6, medium: 0.9, large: 1.3 };
+
+function getPlanetColor(planet, colorMode) {
+  if (colorMode === 'environment') {
+    return ENVIRONMENT_COLORS[planet.environment] || '#8a8a8a';
+  }
+  return FACTION_COLORS[planet.faction] || '#8a8a8a';
+}
+
+function sphericalToVector3(orbitRadius, angleDeg, elevationDeg) {
+  const angle = (angleDeg * Math.PI) / 180;
+  const elev = (elevationDeg * Math.PI) / 180;
+  const x = orbitRadius * Math.cos(elev) * Math.cos(angle);
+  const y = orbitRadius * Math.sin(elev);
+  const z = orbitRadius * Math.cos(elev) * Math.sin(angle);
+  return new THREE.Vector3(x, y, z);
+}
+
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function makeId(name) {
+  const base = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+  return (base || 'planete') + '-' + Math.random().toString(36).slice(2, 7);
+}
+
+function readImageAsDataUrl(file, maxDim, quality, sizeBudget) {
+  maxDim = maxDim || 2048;
+  quality = quality === undefined ? 0.87 : quality;
+  sizeBudget = sizeBudget || 1_800_000; // ~1.8MB of base64 text, safety margin under IndexedDB limits
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read-failed'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('decode-failed'));
+      img.onload = () => {
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+        const longEdge = Math.max(width, height);
+        if (longEdge > maxDim) {
+          const scale = maxDim / longEdge;
+          width = Math.max(1, Math.round(width * scale));
+          height = Math.max(1, Math.round(height * scale));
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        try {
+          // Re-encode at progressively lower quality/size until under budget,
+          // so one huge source photo can never single-handedly blow the storage quota.
+          let q = quality;
+          let dataUrl = canvas.toDataURL('image/jpeg', q);
+          let attempts = 0;
+          while (dataUrl.length > sizeBudget && attempts < 6) {
+            if (q > 0.4) {
+              q = Math.max(0.35, q - 0.15);
+            } else {
+              width = Math.round(width * 0.8);
+              height = Math.round(height * 0.8);
+              canvas.width = width;
+              canvas.height = height;
+              ctx.drawImage(img, 0, 0, width, height);
+            }
+            dataUrl = canvas.toDataURL('image/jpeg', q);
+            attempts++;
+          }
+          resolve(dataUrl);
+        } catch (e) {
+          reject(e);
+        }
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ---- IndexedDB-backed store for custom images ----
+// localStorage caps out around 5-10MB per origin, which a handful of custom
+// planet textures blow through instantly and silently breaks ALL saving
+// (not just images). IndexedDB has a much larger quota, so images live there;
+// only small reference keys are kept in the localStorage-persisted map/route data.
+const IDB_NAME = 'landsraad-galaxy-images-v1';
+const IDB_STORE = 'images';
+
+function idbOpenDb() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) {
+      reject(new Error('no-indexeddb'));
+      return;
+    }
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('idb-open-failed'));
+  });
+}
+
+function idbPutImage(key, value) {
+  return idbOpenDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        tx.objectStore(IDB_STORE).put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error || new Error('idb-put-failed'));
+      })
+  );
+}
+
+function idbDeleteImage(key) {
+  if (!key) return Promise.resolve();
+  return idbOpenDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        tx.objectStore(IDB_STORE).delete(key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error || new Error('idb-delete-failed'));
+      })
+  );
+}
+
+function idbClearImages() {
+  return idbOpenDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        tx.objectStore(IDB_STORE).clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error || new Error('idb-clear-failed'));
+      })
+  );
+}
+
+function idbGetAllImages() {
+  return idbOpenDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(IDB_STORE, 'readonly');
+        const store = tx.objectStore(IDB_STORE);
+        const keysReq = store.getAllKeys();
+        const valsReq = store.getAll();
+        let keys = null;
+        let vals = null;
+        let settled = false;
+        function tryResolve() {
+          if (settled || keys === null || vals === null) return;
+          settled = true;
+          const map = {};
+          keys.forEach((k, i) => {
+            map[k] = vals[i];
+          });
+          resolve(map);
+        }
+        keysReq.onsuccess = () => {
+          keys = keysReq.result;
+          tryResolve();
+        };
+        valsReq.onsuccess = () => {
+          vals = valsReq.result;
+          tryResolve();
+        };
+        tx.onerror = () => reject(tx.error || new Error('idb-getall-failed'));
+      })
+  );
+}
+
+function makeImageKey() {
+  return 'img-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+function isImageKey(v) {
+  return typeof v === 'string' && v.indexOf('img-') === 0;
+}
+
+// Upgrades a field that may hold an old-style inline base64 data URL (saved by an
+// earlier version of this file) into an IndexedDB-backed key. Leaves keys/empty as-is.
+function migrateLegacyImage(value, putPromises) {
+  if (typeof value === 'string' && value.indexOf('data:') === 0) {
+    const key = makeImageKey();
+    putPromises.push(idbPutImage(key, value).catch(() => {}));
+    return key;
+  }
+  return value || '';
+}
+
+function hashSeed(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (h * 31 + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h) || 1;
+}
+
+function mulberry32(seed) {
+  let t = seed;
+  return function () {
+    t |= 0;
+    t = (t + 0x6d2b79f5) | 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shadeColor(baseColor, delta, alpha) {
+  const c = baseColor.clone();
+  const hsl = { h: 0, s: 0, l: 0 };
+  c.getHSL(hsl);
+  hsl.l = Math.min(1, Math.max(0, hsl.l + delta));
+  c.setHSL(hsl.h, hsl.s, hsl.l);
+  return 'rgba(' + Math.round(c.r * 255) + ',' + Math.round(c.g * 255) + ',' + Math.round(c.b * 255) + ',' + alpha + ')';
+}
+
+function makePlanetTexture(colorHex, seed, environment) {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const base = new THREE.Color(colorHex);
+  const rand = mulberry32(seed);
+
+  ctx.fillStyle = 'rgb(' + Math.round(base.r * 255) + ',' + Math.round(base.g * 255) + ',' + Math.round(base.b * 255) + ')';
+  ctx.fillRect(0, 0, size, size);
+
+  if (environment === 'desert') {
+    const rippleCount = 10 + Math.floor(rand() * 8);
+    for (let i = 0; i < rippleCount; i++) {
+      const y0 = rand() * size;
+      const amp = 6 + rand() * 18;
+      const freq = 0.008 + rand() * 0.02;
+      ctx.beginPath();
+      ctx.strokeStyle = shadeColor(base, (rand() - 0.5) * 0.22 - 0.04, 0.35 + rand() * 0.25);
+      ctx.lineWidth = 2 + rand() * 5;
+      ctx.moveTo(0, y0);
+      for (let x = 0; x <= size; x += 16) ctx.lineTo(x, y0 + Math.sin(x * freq + i) * amp);
+      ctx.stroke();
+    }
+    const outcrops = 10 + Math.floor(rand() * 14);
+    for (let i = 0; i < outcrops; i++) {
+      const x = rand() * size;
+      const y = rand() * size;
+      const r = 4 + rand() * size * 0.045;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = shadeColor(base, -0.14 - rand() * 0.12, 0.3);
+      ctx.fill();
+    }
+  } else if (environment === 'ocean') {
+    const islandCount = 6 + Math.floor(rand() * 10);
+    for (let i = 0; i < islandCount; i++) {
+      const x = rand() * size;
+      const y = rand() * size;
+      const r = 3 + rand() * size * 0.025;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = shadeColor(base, 0.28 + rand() * 0.15, 0.5);
+      ctx.fill();
+    }
+    const currentCount = 5 + Math.floor(rand() * 4);
+    for (let i = 0; i < currentCount; i++) {
+      const y0 = rand() * size;
+      ctx.beginPath();
+      ctx.strokeStyle = shadeColor(base, (rand() - 0.5) * 0.16, 0.16 + rand() * 0.14);
+      ctx.lineWidth = 6 + rand() * 14;
+      ctx.moveTo(0, y0);
+      for (let x = 0; x <= size; x += 20) ctx.lineTo(x, y0 + Math.sin(x * 0.01 + i * 2) * 22);
+      ctx.stroke();
+    }
+  } else if (environment === 'ice') {
+    const cap1 = ctx.createLinearGradient(0, 0, 0, size * 0.22);
+    cap1.addColorStop(0, shadeColor(base, 0.3, 0.6));
+    cap1.addColorStop(1, shadeColor(base, 0.3, 0));
+    ctx.fillStyle = cap1;
+    ctx.fillRect(0, 0, size, size * 0.22);
+    const cap2 = ctx.createLinearGradient(0, size, 0, size * 0.78);
+    cap2.addColorStop(0, shadeColor(base, 0.3, 0.6));
+    cap2.addColorStop(1, shadeColor(base, 0.3, 0));
+    ctx.fillStyle = cap2;
+    ctx.fillRect(0, size * 0.78, size, size * 0.22);
+    const crackCount = 14 + Math.floor(rand() * 12);
+    for (let i = 0; i < crackCount; i++) {
+      let x = rand() * size;
+      let y = rand() * size;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.strokeStyle = shadeColor(base, -0.16 - rand() * 0.1, 0.35);
+      ctx.lineWidth = 1 + rand();
+      const segs = 3 + Math.floor(rand() * 4);
+      for (let s = 0; s < segs; s++) {
+        x += (rand() - 0.5) * 40;
+        y += (rand() - 0.5) * 40;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  } else if (environment === 'volcanic') {
+    const ashCount = 30 + Math.floor(rand() * 34);
+    for (let i = 0; i < ashCount; i++) {
+      const x = rand() * size;
+      const y = rand() * size;
+      const r = 4 + rand() * size * 0.06;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = shadeColor(base, -0.2 - rand() * 0.18, 0.3);
+      ctx.fill();
+    }
+    const crackCount = 8 + Math.floor(rand() * 8);
+    for (let i = 0; i < crackCount; i++) {
+      let x = rand() * size;
+      let y = rand() * size;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.strokeStyle = 'rgba(255,140,60,' + (0.35 + rand() * 0.3) + ')';
+      ctx.lineWidth = 1 + rand() * 1.5;
+      const segs = 5 + Math.floor(rand() * 6);
+      for (let s = 0; s < segs; s++) {
+        x += (rand() - 0.5) * 50;
+        y += (rand() - 0.5) * 50;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  } else if (environment === 'barren') {
+    const craterCount = 40 + Math.floor(rand() * 45);
+    for (let i = 0; i < craterCount; i++) {
+      const x = rand() * size;
+      const y = rand() * size;
+      const r = 3 + rand() * size * 0.035;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = shadeColor(base, -0.12 - rand() * 0.1, 0.3);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x - r * 0.25, y - r * 0.25, r * 0.65, 0, Math.PI * 2);
+      ctx.fillStyle = shadeColor(base, 0.1 + rand() * 0.1, 0.25);
+      ctx.fill();
+    }
+  } else if (environment === 'industrial') {
+    ctx.strokeStyle = shadeColor(base, -0.22, 0.3);
+    ctx.lineWidth = 1.5;
+    const gridStep = size / (8 + Math.floor(rand() * 5));
+    for (let x = 0; x <= size; x += gridStep) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, size);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= size; y += gridStep) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(size, y);
+      ctx.stroke();
+    }
+    const dotCount = 22 + Math.floor(rand() * 20);
+    for (let i = 0; i < dotCount; i++) {
+      const x = rand() * size;
+      const y = rand() * size;
+      ctx.beginPath();
+      ctx.arc(x, y, 2 + rand() * 3, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,200,120,' + (0.3 + rand() * 0.35) + ')';
+      ctx.fill();
+    }
+    const panelCount = 18 + Math.floor(rand() * 16);
+    for (let i = 0; i < panelCount; i++) {
+      const w = size * (0.02 + rand() * 0.05);
+      const h = size * (0.02 + rand() * 0.05);
+      const x = rand() * size;
+      const y = rand() * size;
+      ctx.fillStyle = shadeColor(base, (rand() - 0.5) * 0.2, 0.22);
+      ctx.fillRect(x, y, w, h);
+    }
+  } else if (environment === 'toxic') {
+    const blotchCount = 45 + Math.floor(rand() * 50);
+    for (let i = 0; i < blotchCount; i++) {
+      const x = rand() * size;
+      const y = rand() * size;
+      const r = 3 + rand() * size * 0.08;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = shadeColor(base, (rand() - 0.5) * 0.5, 0.22 + rand() * 0.22);
+      ctx.fill();
+    }
+    const streakCount = 8 + Math.floor(rand() * 8);
+    for (let i = 0; i < streakCount; i++) {
+      const y0 = rand() * size;
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(180,255,120,' + (0.1 + rand() * 0.12) + ')';
+      ctx.lineWidth = 10 + rand() * 20;
+      ctx.moveTo(0, y0);
+      for (let x = 0; x <= size; x += 24) ctx.lineTo(x, y0 + Math.sin(x * 0.012 + i) * 30);
+      ctx.stroke();
+    }
+  } else {
+    // jungle / temperate / default — dense mottled continents
+    const bandCount = 4 + Math.floor(rand() * 3);
+    for (let i = 0; i < bandCount; i++) {
+      const y = rand() * size;
+      const h = 8 + rand() * size * 0.14;
+      const delta = (rand() - 0.5) * 0.3;
+      ctx.fillStyle = shadeColor(base, delta, 0.18 + rand() * 0.18);
+      ctx.fillRect(0, y, size, h);
+    }
+    const blotchCount = 48 + Math.floor(rand() * 55);
+    for (let i = 0; i < blotchCount; i++) {
+      const x = rand() * size;
+      const y = rand() * size;
+      const r = 3 + rand() * size * 0.09;
+      const delta = (rand() - 0.5) * 0.45;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = shadeColor(base, delta, 0.18 + rand() * 0.22);
+      ctx.fill();
+    }
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  return texture;
+}
+
+function makeBumpTexture(seed) {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const rand = mulberry32(seed + 997);
+  ctx.fillStyle = '#808080';
+  ctx.fillRect(0, 0, size, size);
+  const dotCount = 380 + Math.floor(rand() * 280);
+  for (let i = 0; i < dotCount; i++) {
+    const x = rand() * size;
+    const y = rand() * size;
+    const r = 1 + rand() * 4;
+    const v = Math.floor(90 + rand() * 165);
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
+    ctx.fill();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  return texture;
+}
+
+function makeGlowTexture() {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, 'rgba(255,255,255,0.55)');
+  grad.addColorStop(0.35, 'rgba(255,255,255,0.18)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
+}
+
+function makeStarSpriteTexture() {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.2, 'rgba(255,255,255,0.9)');
+  grad.addColorStop(0.5, 'rgba(255,255,255,0.25)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
+}
+
+function makeMilkyWayTexture() {
+  const w = 2048;
+  const h = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const rand = mulberry32(20260801);
+
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, '#040309');
+  bg.addColorStop(0.5, '#0a0813');
+  bg.addColorStop(1, '#040309');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  // faint distant background stars, denser toward the band
+  for (let i = 0; i < 5200; i++) {
+    const x = rand() * w;
+    const y = rand() * h;
+    const distFromMid = Math.abs(y - h / 2) / (h / 2);
+    if (rand() > 1 - 0.15 * (1 - distFromMid)) continue;
+    const b = rand();
+    const s = b > 0.99 ? 1.7 : b > 0.94 ? 1.1 : 0.6;
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.15 + rand() * 0.5) + ')';
+    ctx.fillRect(x, y, s, s);
+  }
+
+  ctx.save();
+  ctx.translate(w / 2, h / 2);
+  ctx.rotate(-0.22);
+
+  // broad galactic band glow
+  const band = ctx.createLinearGradient(0, -h * 0.34, 0, h * 0.34);
+  band.addColorStop(0, 'rgba(175,170,220,0)');
+  band.addColorStop(0.5, 'rgba(205,195,230,0.38)');
+  band.addColorStop(1, 'rgba(175,170,220,0)');
+  ctx.fillStyle = band;
+  ctx.fillRect(-w, -h * 0.34, w * 2, h * 0.68);
+
+  // bright galactic core / bulge glow, centred on the band
+  const core = ctx.createRadialGradient(0, 0, 0, 0, 0, w * 0.22);
+  core.addColorStop(0, 'rgba(255,244,214,0.55)');
+  core.addColorStop(0.3, 'rgba(255,230,190,0.32)');
+  core.addColorStop(0.65, 'rgba(220,195,190,0.12)');
+  core.addColorStop(1, 'rgba(220,195,190,0)');
+  ctx.fillStyle = core;
+  ctx.fillRect(-w * 0.3, -h * 0.34, w * 0.6, h * 0.68);
+
+  // dust lane cutting through the band
+  const dust = ctx.createLinearGradient(0, -h * 0.045, 0, h * 0.045);
+  dust.addColorStop(0, 'rgba(6,5,5,0)');
+  dust.addColorStop(0.5, 'rgba(6,5,5,0.55)');
+  dust.addColorStop(1, 'rgba(6,5,5,0)');
+  ctx.fillStyle = dust;
+  ctx.fillRect(-w, -h * 0.045, w * 2, h * 0.09);
+
+  // denser star speckle inside the band itself
+  for (let i = 0; i < 6800; i++) {
+    const x = (rand() - 0.5) * w * 1.9;
+    const y = (rand() - 0.5) * h * 0.6 * (1 - Math.abs(x) / (w * 1.1));
+    const s = rand() > 0.97 ? 1.4 : 0.6;
+    ctx.fillStyle = 'rgba(255,250,240,' + (0.2 + rand() * 0.55) + ')';
+    ctx.fillRect(x, y, s, s);
+  }
+  ctx.restore();
+
+  // scattered nebula pockets, mixed hues (HII pink, reflection blue, dust brown)
+  const hues = ['210,120,150', '150,180,225', '190,150,220', '150,110,90'];
+  for (let i = 0; i < 16; i++) {
+    const x = rand() * w;
+    const y = h * 0.2 + rand() * h * 0.6;
+    const r = 40 + rand() * 110;
+    const hue = hues[Math.floor(rand() * hues.length)];
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, 'rgba(' + hue + ',0.13)');
+    grad.addColorStop(1, 'rgba(' + hue + ',0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  return texture;
+}
+
+function makeGalaxyStarfield() {
+  const armCount = 4;
+  const starsPerArm = 2600;
+  const bulgeStars = 1100;
+  const haloStars = 900;
+  const total = armCount * starsPerArm + bulgeStars + haloStars;
+
+  const positions = new Float32Array(total * 3);
+  const colors = new Float32Array(total * 3);
+  const rand = mulberry32(20260802);
+  let idx = 0;
+
+  function setColor(i, cr, cg, cb, bright) {
+    colors[i * 3] = cr * bright;
+    colors[i * 3 + 1] = cg * bright;
+    colors[i * 3 + 2] = cb * bright;
+  }
+
+  // spiral arms
+  const maxRadius = 240;
+  for (let a = 0; a < armCount; a++) {
+    const armOffset = (a / armCount) * Math.PI * 2;
+    for (let i = 0; i < starsPerArm; i++) {
+      const t = rand();
+      const r = 16 + t * maxRadius;
+      const spiralAngle = armOffset + t * 6.2;
+      const scatter = (rand() - 0.5) * 0.4 * (0.5 + t * 1.8);
+      const angle = spiralAngle + scatter;
+      const radialJitter = (rand() - 0.5) * 16 * (0.4 + t);
+      const rr = Math.max(4, r + radialJitter);
+      const height = (rand() - 0.5) * (5 + t * 6);
+
+      positions[idx * 3] = rr * Math.cos(angle);
+      positions[idx * 3 + 1] = height;
+      positions[idx * 3 + 2] = rr * Math.sin(angle);
+
+      const starType = rand();
+      const bright = 0.45 + rand() * 0.55;
+      if (starType > 0.93) setColor(idx, 1.0, 0.86, 0.62, bright);
+      else if (starType > 0.72) setColor(idx, 0.72, 0.8, 1.0, bright);
+      else setColor(idx, 0.92, 0.92, 0.96, bright);
+      idx++;
+    }
+  }
+
+  // central bulge, dense and warm
+  for (let i = 0; i < bulgeStars; i++) {
+    const r = Math.pow(rand(), 1.7) * 20;
+    const angle = rand() * Math.PI * 2;
+    const height = (rand() - 0.5) * 9 * (1 - r / 22);
+    positions[idx * 3] = r * Math.cos(angle);
+    positions[idx * 3 + 1] = height;
+    positions[idx * 3 + 2] = r * Math.sin(angle);
+    const bright = 0.6 + rand() * 0.4;
+    setColor(idx, 1.0, 0.9, 0.72, bright);
+    idx++;
+  }
+
+  // sparse outer halo, faint, roughly spherical
+  for (let i = 0; i < haloStars; i++) {
+    const r = 60 + rand() * 320;
+    const theta = rand() * Math.PI * 2;
+    const phi = Math.acos(rand() * 2 - 1);
+    positions[idx * 3] = r * Math.sin(phi) * Math.cos(theta);
+    positions[idx * 3 + 1] = r * Math.cos(phi) * 0.6;
+    positions[idx * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    const bright = 0.25 + rand() * 0.35;
+    setColor(idx, 0.85, 0.87, 0.95, bright);
+    idx++;
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 0.24,
+    map: makeStarSpriteTexture(),
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.85,
+    sizeAttenuation: true,
+    depthWrite: false,
+  });
+  return new THREE.Points(geo, mat);
+}
+
+const STORAGE_KEY = 'landsraad-galaxy-data-v2';
+
+const DEFAULT_PLANETS = [
+  {
+    id: 'kaitain',
+    environment: 'temperate',
+    name: 'Kaitain',
+    house: 'Maison Corrino',
+    faction: 'Maison Impériale',
+    description:
+      'Capitale de l\'Imperium.',
+    resources: '',
+    size: 'large',
+    orbitRadius: 0,
+    orbitAngle: 0,
+    elevation: 0,
+    distanceLy: 0,
+  },
+  {
+    id: 'salusa-secundus',
+    environment: 'barren',
+    name: 'Salusa Secundus',
+    house: 'Maison Corrino',
+    faction: 'Maison Impériale',
+    description:
+      'planète-prison (Sardaukars).',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 2.0,
+    orbitAngle: 137.5,
+    elevation: 10.8,
+    distanceLy: 1,
+  },
+  {
+    id: 'caladan',
+    environment: 'ocean',
+    name: 'Caladan',
+    house: 'Maison Atréides',
+    faction: 'Grande Maison',
+    description:
+      'Fief océanique ancestral.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 10.67,
+    orbitAngle: 275.0,
+    elevation: -15.9,
+    distanceLy: 152,
+  },
+  {
+    id: 'giedi-prime',
+    environment: 'toxic',
+    name: 'Giedi Prime',
+    house: 'Maison Harkonnen',
+    faction: 'Grande Maison',
+    description:
+      'Monde industriel pollué.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 5.34,
+    orbitAngle: 52.5,
+    elevation: 12.7,
+    distanceLy: 19,
+  },
+  {
+    id: 'lankiveil',
+    environment: 'ice',
+    name: 'Lankiveil',
+    house: 'Maison Harkonnen',
+    faction: 'Grande Maison',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 4.93,
+    orbitAngle: 190.0,
+    elevation: -2.8,
+    distanceLy: 15,
+  },
+  {
+    id: 'ecaz',
+    environment: 'jungle',
+    name: 'Ecaz',
+    house: 'Maison Ecaz',
+    faction: 'Grande Maison',
+    description:
+      'Flore exotique, artistes, bois-broussin.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 3.27,
+    orbitAngle: 327.5,
+    elevation: -8.6,
+    distanceLy: 4.36,
+  },
+  {
+    id: 'grumman',
+    environment: 'barren',
+    name: 'Grumman',
+    house: 'Maison Moritani',
+    faction: 'Grande Maison',
+    description:
+      'Culture guerrière, faide sanglante contre Ecaz/Ginaz.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 8.41,
+    orbitAngle: 105.0,
+    elevation: 15.5,
+    distanceLy: 74.48,
+  },
+  {
+    id: 'ginaz',
+    environment: 'ocean',
+    name: 'Ginaz',
+    house: 'Maison Ginaz',
+    faction: 'Grande Maison',
+    description:
+      'École de formation des Maîtres d\'Armes de l\'Imperium.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 8.93,
+    orbitAngle: 242.6,
+    elevation: -14.2,
+    distanceLy: 89,
+  },
+  {
+    id: 'ix',
+    environment: 'industrial',
+    name: 'Ix',
+    house: 'Maison Vernius',
+    faction: 'Grande Maison',
+    description:
+      'Technologie avancée, conception de machines complexes.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 5.07,
+    orbitAngle: 20.1,
+    elevation: 5.5,
+    distanceLy: 16.25,
+  },
+  {
+    id: 'richese',
+    environment: 'industrial',
+    name: 'Richese',
+    house: 'Maison Richèse',
+    faction: 'Grande Maison',
+    description:
+      'Grande rivale d\'Ix, haute technologie, miniaturisation.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 5.07,
+    orbitAngle: 157.6,
+    elevation: 6.1,
+    distanceLy: 16.3,
+  },
+  {
+    id: 'fenring',
+    environment: 'desert',
+    name: 'Fenring',
+    house: 'Maison Fenring',
+    faction: 'Grande Maison',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 9.22,
+    orbitAngle: 295.1,
+    elevation: -14.5,
+    distanceLy: 98,
+  },
+  {
+    id: 'hagal',
+    environment: 'barren',
+    name: 'Hagal',
+    house: 'Maison Hagal',
+    faction: 'Grande Maison',
+    description:
+      'Mines de diamants et de pierres précieuses.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 10.97,
+    orbitAngle: 72.6,
+    elevation: 15.3,
+    distanceLy: 165,
+  },
+  {
+    id: 'zanovar',
+    environment: 'jungle',
+    name: 'Zanovar',
+    house: 'Maison Taligari',
+    faction: 'Grande Maison',
+    description:
+      'Planète de villégiature et loisirs.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 8.12,
+    orbitAngle: 210.1,
+    elevation: -8.0,
+    distanceLy: 67,
+  },
+  {
+    id: 'novebruns',
+    environment: 'temperate',
+    name: 'Novebruns',
+    house: 'Maisons Mutelli & Novebruns',
+    faction: 'Grande Maison',
+    description:
+      'Planète riche cédée en partie.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 10.05,
+    orbitAngle: 347.6,
+    elevation: -3.4,
+    distanceLy: 127,
+  },
+  {
+    id: 'sigma-draconis-iv',
+    environment: 'ice',
+    name: 'Sigma Draconis IV',
+    house: 'Maison Ordos',
+    faction: 'Grande Maison',
+    description:
+      'Opérations financières sur une planète de glace.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 5.24,
+    orbitAngle: 125.1,
+    elevation: 13.1,
+    distanceLy: 18,
+  },
+  {
+    id: 'wallach-ix',
+    environment: 'temperate',
+    name: 'Wallach IX',
+    house: 'Bene Gesserit',
+    faction: 'Faction Majeure',
+    description:
+      'École Mère et sanctuaires de la Révérende Mère.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 22.44,
+    orbitAngle: 262.6,
+    elevation: -15.9,
+    distanceLy: 1412,
+  },
+  {
+    id: 'al-dhanab',
+    environment: 'desert',
+    name: 'Al Dhanab',
+    house: 'Bene Gesserit',
+    faction: 'Faction Majeure',
+    description:
+      'École Mère et sanctuaires de la Révérende Mère.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 22.44,
+    orbitAngle: 40.1,
+    elevation: 10.3,
+    distanceLy: 1412,
+  },
+  {
+    id: 'la-chapelle',
+    environment: 'temperate',
+    name: 'La Chapelle',
+    house: 'Bene Gesserit',
+    faction: 'Faction Majeure',
+    description:
+      'École Mère et sanctuaires de la Révérende Mère.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 22.44,
+    orbitAngle: 177.6,
+    elevation: 0.7,
+    distanceLy: 1412,
+  },
+  {
+    id: 'tleilax',
+    environment: 'toxic',
+    name: 'Tleilax',
+    house: 'Bene Tleilax (Tleilaxu)',
+    faction: 'Faction Majeure',
+    description:
+      'Manipulations génétiques, clonage (cuves d\'axlotl) (alias : Bandalong).',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 10.88,
+    orbitAngle: 315.1,
+    elevation: -11.3,
+    distanceLy: 161,
+  },
+  {
+    id: 'junction',
+    environment: 'industrial',
+    name: 'Junction',
+    house: 'Guilde Spatiale',
+    faction: 'Faction Majeure',
+    description:
+      'Centre de contrôle des transports interstellaires.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 21.6,
+    orbitAngle: 92.6,
+    elevation: 16.0,
+    distanceLy: 1259,
+  },
+  {
+    id: 'arrakis',
+    environment: 'desert',
+    name: 'Arrakis',
+    house: 'Les Fremen',
+    faction: 'Faction Majeure',
+    description:
+      'Terre sacrée et monde natal.',
+    resources: '',
+    size: 'medium',
+    orbitRadius: 5.11,
+    orbitAngle: 230.2,
+    elevation: -12.3,
+    distanceLy: 16.69,
+  },
+  {
+    id: 'tupile',
+    environment: 'jungle',
+    name: 'Tupile',
+    house: 'Planète Sanctuaire',
+    faction: 'Refuge',
+    description:
+      'Planète secrète pour les Maisons déchues ou bannies.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 23.53,
+    orbitAngle: 7.7,
+    elevation: 2.1,
+    distanceLy: 1628,
+  },
+  {
+    id: 'alexin',
+    environment: 'temperate',
+    name: 'Alexin',
+    house: 'Maison Alexin',
+    faction: 'Maison Mineure',
+    description:
+      'Gouvernance axée sur l\'agriculture et les cultures vivrières.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 9.16,
+    orbitAngle: 145.2,
+    elevation: 9.1,
+    distanceLy: 96,
+  },
+  {
+    id: 'argosaz',
+    environment: 'barren',
+    name: 'Argosaz',
+    house: 'Maison Argosaz',
+    faction: 'Maison Mineure',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 7.51,
+    orbitAngle: 282.7,
+    elevation: -15.6,
+    distanceLy: 53,
+  },
+  {
+    id: 'dyvetz',
+    environment: 'ocean',
+    name: 'Dyvetz',
+    house: 'Maison Dyvetz',
+    faction: 'Maison Mineure',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 6.07,
+    orbitAngle: 60.2,
+    elevation: 13.9,
+    distanceLy: 28,
+  },
+  {
+    id: 'hurata',
+    environment: 'desert',
+    name: 'Hurata',
+    house: 'Maison Hurata',
+    faction: 'Maison Mineure',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 8.47,
+    orbitAngle: 197.7,
+    elevation: -4.9,
+    distanceLy: 76,
+  },
+  {
+    id: 'imota',
+    environment: 'ice',
+    name: 'Imota',
+    house: 'Maison Imota',
+    faction: 'Maison Mineure',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 5.34,
+    orbitAngle: 335.2,
+    elevation: -6.7,
+    distanceLy: 19,
+  },
+  {
+    id: 'kenola',
+    environment: 'jungle',
+    name: 'Kenola',
+    house: 'Maison Kenola',
+    faction: 'Maison Mineure',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 6.95,
+    orbitAngle: 112.7,
+    elevation: 14.8,
+    distanceLy: 42,
+  },
+  {
+    id: 'lindaren',
+    environment: 'barren',
+    name: 'Lindaren',
+    house: 'Maison Lindaren',
+    faction: 'Maison Mineure',
+    description:
+      'Établie dans des réseaux de cavités souterraines fortifiées.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 8.12,
+    orbitAngle: 250.2,
+    elevation: -15.1,
+    distanceLy: 67,
+  },
+  {
+    id: 'maros',
+    environment: 'volcanic',
+    name: 'Maros',
+    house: 'Maison Maros',
+    faction: 'Maison Mineure',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 8.36,
+    orbitAngle: 27.7,
+    elevation: 7.4,
+    distanceLy: 73,
+  },
+  {
+    id: 'mikarrol',
+    environment: 'temperate',
+    name: 'Mikarrol',
+    house: 'Maison Mikarrol',
+    faction: 'Maison Mineure',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 4.82,
+    orbitAngle: 165.2,
+    elevation: 4.1,
+    distanceLy: 14,
+  },
+  {
+    id: 'sor',
+    environment: 'industrial',
+    name: 'Sor',
+    house: 'Maison Sor',
+    faction: 'Maison Mineure',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 6.0,
+    orbitAngle: 302.7,
+    elevation: -13.5,
+    distanceLy: 27,
+  },
+  {
+    id: 'spinnette',
+    environment: 'toxic',
+    name: 'Spinnette',
+    house: 'Maison Spinnette',
+    faction: 'Maison Mineure',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 6.48,
+    orbitAngle: 80.2,
+    elevation: 15.8,
+    distanceLy: 34,
+  },
+  {
+    id: 'thorvald',
+    environment: 'ice',
+    name: 'Thorvald',
+    house: 'Maison Thorvald',
+    faction: 'Maison Mineure',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 6.9,
+    orbitAngle: 217.8,
+    elevation: -9.8,
+    distanceLy: 41,
+  },
+  {
+    id: 'tseida',
+    environment: 'ocean',
+    name: 'Tseida',
+    house: 'Maison Tseida',
+    faction: 'Maison Mineure',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 7.79,
+    orbitAngle: 355.3,
+    elevation: -1.3,
+    distanceLy: 59,
+  },
+  {
+    id: 'varota',
+    environment: 'desert',
+    name: 'Varota',
+    house: 'Maison Varota',
+    faction: 'Maison Mineure',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 7.92,
+    orbitAngle: 132.8,
+    elevation: 11.7,
+    distanceLy: 62,
+  },
+  {
+    id: 'wayku',
+    environment: 'jungle',
+    name: 'Wayku',
+    house: 'Maison Wayku',
+    faction: 'Maison Mineure',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 8.28,
+    orbitAngle: 270.3,
+    elevation: -16.0,
+    distanceLy: 71,
+  },
+  {
+    id: 'wydras',
+    environment: 'volcanic',
+    name: 'Wydras',
+    house: 'Maison Wydras',
+    faction: 'Maison Mineure',
+    description:
+      'Aucune remarque n\'a été consignée pour ce monde dans le registre du Landsraad.',
+    resources: '',
+    size: 'small',
+    orbitRadius: 8.72,
+    orbitAngle: 47.8,
+    elevation: 11.9,
+    distanceLy: 83,
+  },
+];
+
+const DEFAULT_ROUTES = [
+  ['kaitain', 'salusa-secundus'],
+  ['kaitain', 'caladan'],
+  ['kaitain', 'giedi-prime'],
+  ['kaitain', 'lankiveil'],
+  ['kaitain', 'ecaz'],
+  ['kaitain', 'grumman'],
+  ['kaitain', 'ginaz'],
+  ['kaitain', 'ix'],
+  ['kaitain', 'richese'],
+  ['kaitain', 'fenring'],
+  ['kaitain', 'hagal'],
+  ['kaitain', 'zanovar'],
+  ['kaitain', 'novebruns'],
+  ['kaitain', 'sigma-draconis-iv'],
+  ['kaitain', 'wallach-ix'],
+  ['kaitain', 'al-dhanab'],
+  ['kaitain', 'la-chapelle'],
+  ['kaitain', 'tleilax'],
+  ['kaitain', 'junction'],
+  ['kaitain', 'arrakis'],
+  ['kaitain', 'tupile'],
+  ['kaitain', 'alexin'],
+  ['kaitain', 'argosaz'],
+  ['kaitain', 'dyvetz'],
+  ['kaitain', 'hurata'],
+  ['kaitain', 'imota'],
+  ['kaitain', 'kenola'],
+  ['kaitain', 'lindaren'],
+  ['kaitain', 'maros'],
+  ['kaitain', 'mikarrol'],
+  ['kaitain', 'sor'],
+  ['kaitain', 'spinnette'],
+  ['kaitain', 'thorvald'],
+  ['kaitain', 'tseida'],
+  ['kaitain', 'varota'],
+  ['kaitain', 'wayku'],
+  ['kaitain', 'wydras'],
+];
+
+function toolbarBtnStyle(active) {
+  return {
+    background: active ? COLORS.accentSoft : 'rgba(255,255,255,0.04)',
+    color: active ? COLORS.accent : COLORS.text,
+    border: '1px solid ' + (active ? COLORS.accent : COLORS.panelBorder),
+    cursor: 'pointer',
+  };
+}
+
+const inputStyle = {
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid ' + COLORS.panelBorder,
+  color: COLORS.text,
+  outline: 'none',
+};
+
+function Field({ label, children }) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-xs" style={{ color: COLORS.textMuted, fontFamily: "'IBM Plex Mono', monospace" }}>
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function AppearanceImageField({ label, hint, url, previewWidth, previewHeight, onChangeFile, onClear }) {
+  return (
+    <Field label={label}>
+      <div className="flex items-center gap-3">
+        {url ? (
+          <img
+            src={url}
+            alt=""
+            className="rounded object-cover flex-shrink-0"
+            style={{ width: previewWidth, height: previewHeight, border: '1px solid ' + COLORS.panelBorder }}
+          />
+        ) : (
+          <div
+            className="rounded flex items-center justify-center flex-shrink-0"
+            style={{ width: previewWidth, height: previewHeight, border: '1px dashed ' + COLORS.panelBorder, color: COLORS.dim }}
+          >
+            <ImageIcon size={16} />
+          </div>
+        )}
+        <div className="flex flex-col gap-1.5 flex-1">
+          <label className="lgm-btn text-xs px-2.5 py-1.5 rounded text-center cursor-pointer" style={toolbarBtnStyle(false)}>
+            {url ? "Changer l'image" : 'Choisir une image'}
+            <input type="file" accept="image/*" onChange={onChangeFile} className="hidden" />
+          </label>
+          {url && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="lgm-btn text-xs px-2.5 py-1.5 rounded"
+              style={{ ...toolbarBtnStyle(false), color: COLORS.crimson, borderColor: COLORS.crimson + '66' }}
+            >
+              Retirer l'image
+            </button>
+          )}
+        </div>
+      </div>
+      {hint && (
+        <p className="text-xs mt-1.5 leading-relaxed" style={{ color: COLORS.textMuted }}>
+          {hint}
+        </p>
+      )}
+    </Field>
+  );
+}
+
+function LandsraadGalaxyMap() {
+  const [planets, setPlanets] = useState([]);
+  const [routes, setRoutes] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editingPlanet, setEditingPlanet] = useState(null);
+  const [tourActive, setTourActive] = useState(false);
+  const [colorMode, setColorMode] = useState('faction');
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const [routeDraft, setRouteDraft] = useState({ a: '', b: '' });
+  const [saveError, setSaveError] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [mapSettings, setMapSettings] = useState({ skyboxUrl: '', bannerUrl: '', panelBgUrl: '' });
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsImageError, setSettingsImageError] = useState(false);
+  const [imageCache, setImageCache] = useState({});
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+
+  const mountRef = useRef(null);
+  const labelRefs = useRef({});
+  const routeLabelRefs = useRef({});
+  const sceneRef = useRef(null);
+  const meshMapRef = useRef({});
+  const linesRef = useRef([]);
+  const glowSpritesRef = useRef([]);
+  const glowTextureRef = useRef(null);
+  const starsRef = useRef(null);
+  const skyMeshRef = useRef(null);
+  const skyIsCustomRef = useRef(false);
+  const holoGridRef = useRef(null);
+  const scanSweepRef = useRef(null);
+  const selectionRingRef = useRef(null);
+  const animFrameRef = useRef(null);
+  const rendererSizeRef = useRef({ width: 1, height: 1 });
+  const routesRef = useRef([]);
+
+  const orbitRef = useRef({ theta: 0.9, phi: 1.15, radius: 30 });
+  const radiusDesiredRef = useRef(30);
+  const targetRef = useRef(new THREE.Vector3(0, 0, 0));
+  const focusDesiredRef = useRef(new THREE.Vector3(0, 0, 0));
+
+  const draggingRef = useRef(false);
+  const originalPlanetImagesRef = useRef({ imageUrl: '', crestUrl: '' });
+
+  function resolveImage(key) {
+    return (key && imageCache[key]) || '';
+  }
+  const selectedIdRef = useRef(null);
+  const tourActiveRef = useRef(false);
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+  useEffect(() => {
+    tourActiveRef.current = tourActive;
+  }, [tourActive]);
+  useEffect(() => {
+    routesRef.current = routes;
+  }, [routes]);
+
+  // ---- Load persisted data (localStorage for map data, IndexedDB for images) ----
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      let loadedPlanets = DEFAULT_PLANETS;
+      let loadedRoutes = DEFAULT_ROUTES;
+      let loadedSettings = { skyboxUrl: '', bannerUrl: '', panelBgUrl: '' };
+      let cache = {};
+
+      try {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const data = JSON.parse(raw);
+            loadedPlanets = Array.isArray(data.planets) && data.planets.length ? data.planets : DEFAULT_PLANETS;
+            loadedRoutes = Array.isArray(data.routes) ? data.routes : DEFAULT_ROUTES;
+            loadedSettings = { skyboxUrl: '', bannerUrl: '', panelBgUrl: '', ...(data.mapSettings || {}) };
+          }
+        } catch (e) {
+          loadedPlanets = DEFAULT_PLANETS;
+          loadedRoutes = DEFAULT_ROUTES;
+        }
+
+        let needsResave = false;
+        try {
+          const putPromises = [];
+          const migratedPlanets = loadedPlanets.map((p) => {
+            const imageUrl = migrateLegacyImage(p.imageUrl, putPromises);
+            const crestUrl = migrateLegacyImage(p.crestUrl, putPromises);
+            if (imageUrl !== (p.imageUrl || '') || crestUrl !== (p.crestUrl || '')) needsResave = true;
+            return { ...p, imageUrl, crestUrl };
+          });
+          loadedPlanets = migratedPlanets;
+
+          const skyboxUrl = migrateLegacyImage(loadedSettings.skyboxUrl, putPromises);
+          const bannerUrl = migrateLegacyImage(loadedSettings.bannerUrl, putPromises);
+          const panelBgUrl = migrateLegacyImage(loadedSettings.panelBgUrl, putPromises);
+          if (skyboxUrl !== loadedSettings.skyboxUrl || bannerUrl !== loadedSettings.bannerUrl || panelBgUrl !== loadedSettings.panelBgUrl) {
+            needsResave = true;
+          }
+          loadedSettings = { skyboxUrl, bannerUrl, panelBgUrl };
+
+          await Promise.all(putPromises);
+          cache = await idbGetAllImages();
+        } catch (e) {
+          // IndexedDB unavailable (private browsing, old browser…) — the map still works, just without custom images.
+          cache = {};
+        }
+
+        if (cancelled) return;
+        setPlanets(loadedPlanets);
+        setRoutes(loadedRoutes);
+        setMapSettings(loadedSettings);
+        setImageCache(cache);
+
+        if (needsResave) {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ planets: loadedPlanets, routes: loadedRoutes, mapSettings: loadedSettings }));
+          } catch (e) {
+            // the regular auto-save effect will retry once state settles
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setImagesLoaded(true);
+          setLoaded(true);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // ---- Persist on change (browser localStorage) ----
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ planets, routes, mapSettings }));
+      setSaveError(false);
+    } catch (e) {
+      setSaveError(true);
+    }
+  }, [planets, routes, mapSettings, loaded]);
+
+  // ---- Three.js scene init (once) ----
+  useEffect(() => {
+    const mountEl = mountRef.current;
+    if (!mountEl) return;
+
+    const scene = new THREE.Scene();
+    sceneRef.current = scene;
+
+    const width = mountEl.clientWidth || 800;
+    const height = mountEl.clientHeight || 600;
+    rendererSizeRef.current = { width, height };
+
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(width, height);
+    renderer.setClearColor(new THREE.Color(COLORS.bgVoid), 1);
+    mountEl.appendChild(renderer.domElement);
+
+    const dom = renderer.domElement;
+    dom.style.touchAction = 'none';
+    dom.style.cursor = 'grab';
+    dom.style.display = 'block';
+
+    scene.add(new THREE.AmbientLight(0x8a7a63, 0.9));
+    const pointLight = new THREE.PointLight(0xf4e0bb, 1.3, 300);
+    pointLight.position.set(24, 24, 24);
+    scene.add(pointLight);
+    const pointLight2 = new THREE.PointLight(0x6f5da0, 0.5, 300);
+    pointLight2.position.set(-24, -12, -24);
+    scene.add(pointLight2);
+
+    const stars = makeGalaxyStarfield();
+    scene.add(stars);
+    starsRef.current = stars;
+
+    const skyTexture = makeMilkyWayTexture();
+    const skyGeo = new THREE.SphereGeometry(400, 32, 32);
+    const skyMat = new THREE.MeshBasicMaterial({ map: skyTexture, side: THREE.BackSide, depthWrite: false });
+    const skyMesh = new THREE.Mesh(skyGeo, skyMat);
+    scene.add(skyMesh);
+    skyMeshRef.current = skyMesh;
+
+    glowTextureRef.current = makeGlowTexture();
+
+    // ---- Holographic base grid (concentric rings + radial spokes) ----
+    const holoGrid = new THREE.Group();
+    const gridColor = new THREE.Color(COLORS.gold);
+    [4, 8, 12, 16, 20, 24].forEach((r) => {
+      const ringPts = [];
+      const segs = 96;
+      for (let i = 0; i <= segs; i++) {
+        const a = (i / segs) * Math.PI * 2;
+        ringPts.push(new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r));
+      }
+      const ringGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
+      const ringMat = new THREE.LineBasicMaterial({ color: gridColor, transparent: true, opacity: 0.1 });
+      holoGrid.add(new THREE.Line(ringGeo, ringMat));
+    });
+    const spokeCount = 16;
+    for (let i = 0; i < spokeCount; i++) {
+      const a = (i / spokeCount) * Math.PI * 2;
+      const spokeGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(Math.cos(a) * 24, 0, Math.sin(a) * 24),
+      ]);
+      const spokeMat = new THREE.LineBasicMaterial({ color: gridColor, transparent: true, opacity: 0.06 });
+      holoGrid.add(new THREE.Line(spokeGeo, spokeMat));
+    }
+    scene.add(holoGrid);
+    holoGridRef.current = holoGrid;
+
+    // ---- Vertical scan sweep (soft horizontal disc drifting through the projection) ----
+    const scanTexture = makeGlowTexture();
+    const scanGeo = new THREE.CircleGeometry(26, 48);
+    const scanMat = new THREE.MeshBasicMaterial({
+      map: scanTexture,
+      color: gridColor,
+      transparent: true,
+      opacity: 0.08,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const scanMesh = new THREE.Mesh(scanGeo, scanMat);
+    scanMesh.rotation.x = -Math.PI / 2;
+    scene.add(scanMesh);
+    scanSweepRef.current = scanMesh;
+
+    // ---- Selection target-lock ring ----
+    const selRingPts = [];
+    const selRingSegs = 64;
+    for (let i = 0; i <= selRingSegs; i++) {
+      const a = (i / selRingSegs) * Math.PI * 2;
+      selRingPts.push(new THREE.Vector3(Math.cos(a), 0, Math.sin(a)));
+    }
+    const selRingGeo = new THREE.BufferGeometry().setFromPoints(selRingPts);
+    const selRingMat = new THREE.LineDashedMaterial({
+      color: new THREE.Color(COLORS.accent),
+      dashSize: 0.35,
+      gapSize: 0.22,
+      transparent: true,
+      opacity: 0.8,
+    });
+    const selRing = new THREE.LineLoop(selRingGeo, selRingMat);
+    selRing.computeLineDistances();
+    selRing.rotation.x = Math.PI / 2;
+    selRing.visible = false;
+    scene.add(selRing);
+    selectionRingRef.current = selRing;
+
+    const raycaster = new THREE.Raycaster();
+
+    function updateCameraPosition() {
+      const { theta, phi, radius } = orbitRef.current;
+      const target = targetRef.current;
+      camera.position.x = target.x + radius * Math.sin(phi) * Math.cos(theta);
+      camera.position.y = target.y + radius * Math.cos(phi);
+      camera.position.z = target.z + radius * Math.sin(phi) * Math.sin(theta);
+      camera.lookAt(target);
+    }
+    updateCameraPosition();
+    camera.updateMatrixWorld();
+
+    let isPointerDown = false;
+    let lastPos = { x: 0, y: 0 };
+    let downPos = { x: 0, y: 0 };
+
+    function doRaycast(clientX, clientY) {
+      const rect = dom.getBoundingClientRect();
+      const mouse = new THREE.Vector2(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -((clientY - rect.top) / rect.height) * 2 + 1
+      );
+      raycaster.setFromCamera(mouse, camera);
+      const meshes = Object.values(meshMapRef.current);
+      const hits = raycaster.intersectObjects(meshes);
+      if (hits.length > 0) {
+        const mesh = hits[0].object;
+        setSelectedId(mesh.userData.id);
+        focusDesiredRef.current.copy(mesh.position);
+        radiusDesiredRef.current = 12;
+      } else {
+        setSelectedId(null);
+        focusDesiredRef.current.set(0, 0, 0);
+        radiusDesiredRef.current = 30;
+      }
+    }
+
+    function onPointerDown(e) {
+      isPointerDown = true;
+      draggingRef.current = true;
+      lastPos = { x: e.clientX, y: e.clientY };
+      downPos = { x: e.clientX, y: e.clientY };
+      dom.style.cursor = 'grabbing';
+    }
+    function onPointerMove(e) {
+      if (!isPointerDown) {
+        const rect = dom.getBoundingClientRect();
+        if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          const mouse = new THREE.Vector2(
+            ((e.clientX - rect.left) / rect.width) * 2 - 1,
+            -((e.clientY - rect.top) / rect.height) * 2 + 1
+          );
+          raycaster.setFromCamera(mouse, camera);
+          const meshes = Object.values(meshMapRef.current);
+          const hits = raycaster.intersectObjects(meshes);
+          dom.style.cursor = hits.length > 0 ? 'pointer' : 'grab';
+        }
+        return;
+      }
+      const dx = e.clientX - lastPos.x;
+      const dy = e.clientY - lastPos.y;
+      orbitRef.current.theta -= dx * 0.006;
+      orbitRef.current.phi = clamp(orbitRef.current.phi - dy * 0.006, 0.25, Math.PI - 0.25);
+      lastPos = { x: e.clientX, y: e.clientY };
+    }
+    function onPointerUp(e) {
+      isPointerDown = false;
+      draggingRef.current = false;
+      dom.style.cursor = 'grab';
+      const dist = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
+      if (dist < 6) doRaycast(e.clientX, e.clientY);
+    }
+    function onWheel(e) {
+      e.preventDefault();
+      radiusDesiredRef.current = clamp(radiusDesiredRef.current + e.deltaY * 0.02, 6, 70);
+    }
+
+    dom.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    dom.addEventListener('wheel', onWheel, { passive: false });
+
+    function animate() {
+      animFrameRef.current = requestAnimationFrame(animate);
+      const t = performance.now() * 0.001;
+
+      orbitRef.current.radius += (radiusDesiredRef.current - orbitRef.current.radius) * 0.07;
+      targetRef.current.lerp(focusDesiredRef.current, 0.07);
+
+      if (!draggingRef.current && !tourActiveRef.current && selectedIdRef.current === null) {
+        orbitRef.current.theta += 0.0007;
+      }
+
+      updateCameraPosition();
+      camera.updateMatrixWorld();
+
+      Object.values(meshMapRef.current).forEach((mesh) => {
+        const base = mesh.userData.baseScale || 1;
+        if (mesh.userData.id === selectedIdRef.current) {
+          mesh.scale.setScalar(base * (1 + 0.08 * Math.sin(t * 3)));
+        } else {
+          mesh.scale.setScalar(base);
+        }
+        mesh.rotation.y += 0.0015;
+      });
+
+      glowSpritesRef.current.forEach((obj) => {
+        if (obj.userData && obj.userData.spinShell) {
+          obj.rotation.y += obj.userData.spinSpeed;
+          obj.rotation.x += obj.userData.spinSpeed * 0.35;
+        }
+      });
+
+      if (holoGridRef.current) holoGridRef.current.rotation.y += 0.00018;
+
+      if (scanSweepRef.current) {
+        const cycle = 9;
+        const phase = (t % cycle) / cycle;
+        scanSweepRef.current.position.y = -15 + phase * 30;
+        const edgeFade = Math.sin(phase * Math.PI);
+        scanSweepRef.current.material.opacity = 0.03 + edgeFade * 0.08;
+      }
+
+      if (selectionRingRef.current) {
+        const sel = selectedIdRef.current;
+        const selMesh = sel ? meshMapRef.current[sel] : null;
+        const ring = selectionRingRef.current;
+        if (selMesh) {
+          const r = (selMesh.geometry.parameters && selMesh.geometry.parameters.radius) || 1;
+          ring.visible = true;
+          ring.position.copy(selMesh.position);
+          ring.scale.set(r * 1.9, r * 1.9, r * 1.9);
+          ring.rotation.y += 0.012;
+        } else {
+          ring.visible = false;
+        }
+      }
+
+      if (starsRef.current) starsRef.current.rotation.y += 0.00007;
+
+      const { width: w, height: h } = rendererSizeRef.current;
+      Object.entries(labelRefs.current).forEach(([id, el]) => {
+        const mesh = meshMapRef.current[id];
+        if (!mesh || !el) return;
+        const v = mesh.position.clone().project(camera);
+        if (v.z > 1) {
+          el.style.opacity = '0';
+          return;
+        }
+        const x = (v.x * 0.5 + 0.5) * w;
+        const y = (-v.y * 0.5 + 0.5) * h;
+        el.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
+        const dim = selectedIdRef.current && selectedIdRef.current !== id;
+        el.style.opacity = dim ? '0.45' : '1';
+      });
+
+      routesRef.current.forEach((route, i) => {
+        const el = routeLabelRefs.current[i];
+        if (!el) return;
+        const ma = meshMapRef.current[route[0]];
+        const mb = meshMapRef.current[route[1]];
+        if (!ma || !mb) {
+          el.style.opacity = '0';
+          return;
+        }
+        const mid = ma.position.clone().lerp(mb.position, 0.5);
+        const v = mid.project(camera);
+        if (v.z > 1) {
+          el.style.opacity = '0';
+          return;
+        }
+        const x = (v.x * 0.5 + 0.5) * w;
+        const y = (-v.y * 0.5 + 0.5) * h;
+        el.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
+        el.style.opacity = '0.8';
+      });
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = Math.max(1, entry.contentRect.width);
+        const h = Math.max(1, entry.contentRect.height);
+        rendererSizeRef.current = { width: w, height: h };
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      }
+    });
+    resizeObserver.observe(mountEl);
+
+    return () => {
+      cancelAnimationFrame(animFrameRef.current);
+      dom.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      dom.removeEventListener('wheel', onWheel);
+      resizeObserver.disconnect();
+      Object.values(meshMapRef.current).forEach((mesh) => {
+        scene.remove(mesh);
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+      });
+      linesRef.current.forEach((line) => {
+        scene.remove(line);
+        line.geometry.dispose();
+        line.material.dispose();
+      });
+      glowSpritesRef.current.forEach((sprite) => {
+        scene.remove(sprite);
+        if (sprite.geometry) sprite.geometry.dispose();
+        sprite.material.dispose();
+      });
+      scene.remove(stars);
+      stars.material.map.dispose();
+      stars.geometry.dispose();
+      stars.material.dispose();
+      scene.remove(skyMesh);
+      skyGeo.dispose();
+      if (skyMesh.material.map) skyMesh.material.map.dispose();
+      skyMat.dispose();
+      skyMeshRef.current = null;
+      holoGrid.children.forEach((line) => {
+        line.geometry.dispose();
+        line.material.dispose();
+      });
+      scene.remove(holoGrid);
+      scene.remove(scanMesh);
+      scanGeo.dispose();
+      scanMat.dispose();
+      scanTexture.dispose();
+      scene.remove(selRing);
+      selRingGeo.dispose();
+      selRingMat.dispose();
+      if (glowTextureRef.current) {
+        glowTextureRef.current.dispose();
+        glowTextureRef.current = null;
+      }
+      renderer.dispose();
+      if (dom.parentNode === mountEl) mountEl.removeChild(dom);
+    };
+  }, []);
+
+  // ---- Swap the skybox texture for a custom image, or revert to the generated one ----
+  useEffect(() => {
+    const mesh = skyMeshRef.current;
+    if (!mesh) return;
+    let cancelled = false;
+    const url = mapSettings.skyboxUrl ? imageCache[mapSettings.skyboxUrl] : '';
+
+    if (url && url.trim()) {
+      const loader = new THREE.TextureLoader();
+      loader.load(
+        url,
+        (tex) => {
+          if (cancelled) {
+            tex.dispose();
+            return;
+          }
+          if (mesh.material.map) mesh.material.map.dispose();
+          tex.wrapS = THREE.RepeatWrapping;
+          tex.wrapT = THREE.ClampToEdgeWrapping;
+          mesh.material.map = tex;
+          mesh.material.needsUpdate = true;
+          skyIsCustomRef.current = true;
+        },
+        undefined,
+        () => {
+          if (cancelled) return;
+          // image failed to load — leave the current (generated) sky texture in place
+        }
+      );
+    } else if (skyIsCustomRef.current && !mapSettings.skyboxUrl) {
+      if (mesh.material.map) mesh.material.map.dispose();
+      const proceduralTex = makeMilkyWayTexture();
+      mesh.material.map = proceduralTex;
+      mesh.material.needsUpdate = true;
+      skyIsCustomRef.current = false;
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mapSettings.skyboxUrl, imageCache]);
+
+  // ---- Rebuild planet meshes & routes when data changes ----
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    Object.values(meshMapRef.current).forEach((mesh) => {
+      scene.remove(mesh);
+      mesh.geometry.dispose();
+      if (mesh.material.map) mesh.material.map.dispose();
+      if (mesh.material.bumpMap) mesh.material.bumpMap.dispose();
+      mesh.material.dispose();
+    });
+    meshMapRef.current = {};
+
+    linesRef.current.forEach((line) => {
+      scene.remove(line);
+      line.geometry.dispose();
+      line.material.dispose();
+    });
+    linesRef.current = [];
+
+    glowSpritesRef.current.forEach((sprite) => {
+      scene.remove(sprite);
+      if (sprite.geometry) sprite.geometry.dispose();
+      sprite.material.dispose();
+    });
+    glowSpritesRef.current = [];
+
+    let cancelled = false;
+
+    planets.forEach((p) => {
+      const pos = sphericalToVector3(p.orbitRadius, p.orbitAngle, p.elevation);
+      const radius = SIZE_RADIUS[p.size] || 0.9;
+      const colorHex = getPlanetColor(p, colorMode);
+      const color = new THREE.Color(colorHex);
+      const seed = hashSeed(p.id);
+      const geometry = new THREE.SphereGeometry(radius, 40, 40);
+      const envForTexture = colorMode === 'environment' ? p.environment : null;
+      const resolvedImage = p.imageUrl ? imageCache[p.imageUrl] : '';
+      const hasCustomImage = !!(resolvedImage && String(resolvedImage).trim());
+      const planetTexture = hasCustomImage ? null : makePlanetTexture(colorHex, seed, envForTexture);
+      const bumpTexture = hasCustomImage ? null : makeBumpTexture(seed);
+      if (planetTexture) planetTexture.anisotropy = 4;
+      const material = new THREE.MeshPhongMaterial({
+        map: planetTexture,
+        bumpMap: bumpTexture,
+        bumpScale: hasCustomImage ? 0 : 0.05,
+        emissive: color,
+        emissiveIntensity: hasCustomImage ? 0.03 : 0.1,
+        shininess: 12,
+        specular: new THREE.Color(0x2a2a2a),
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.copy(pos);
+      mesh.rotation.z = ((seed % 1000) / 1000 - 0.5) * 0.5;
+      mesh.userData = { id: p.id, baseScale: 1 };
+      scene.add(mesh);
+      meshMapRef.current[p.id] = mesh;
+
+      if (hasCustomImage) {
+        const loader = new THREE.TextureLoader();
+        loader.load(
+          resolvedImage,
+          (tex) => {
+            if (cancelled) {
+              tex.dispose();
+              return;
+            }
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.ClampToEdgeWrapping;
+            tex.anisotropy = 4;
+            material.map = tex;
+            material.needsUpdate = true;
+          },
+          undefined,
+          () => {
+            if (cancelled) return;
+            // image failed to load — fall back to the generated texture
+            const fallbackTex = makePlanetTexture(colorHex, seed, envForTexture);
+            fallbackTex.anisotropy = 4;
+            material.map = fallbackTex;
+            material.bumpMap = makeBumpTexture(seed);
+            material.bumpScale = 0.05;
+            material.emissiveIntensity = 0.1;
+            material.needsUpdate = true;
+          }
+        );
+      }
+
+      if (glowTextureRef.current) {
+        const glowMat = new THREE.SpriteMaterial({
+          map: glowTextureRef.current,
+          color,
+          transparent: true,
+          opacity: 0.22,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        });
+        const glowSprite = new THREE.Sprite(glowMat);
+        const glowScale = radius * 2.6;
+        glowSprite.scale.set(glowScale, glowScale, 1);
+        glowSprite.position.copy(pos);
+        scene.add(glowSprite);
+        glowSpritesRef.current.push(glowSprite);
+      }
+
+      // holographic wireframe shell — slowly spinning geodesic cage
+      const wireGeo = new THREE.SphereGeometry(radius * 1.16, 10, 8);
+      const wireMat = new THREE.MeshBasicMaterial({
+        color,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.28,
+        depthWrite: false,
+      });
+      const wireMesh = new THREE.Mesh(wireGeo, wireMat);
+      wireMesh.position.copy(pos);
+      wireMesh.userData = { spinShell: true, spinSpeed: 0.004 + (seed % 100) / 100 * 0.008 };
+      scene.add(wireMesh);
+      glowSpritesRef.current.push(wireMesh);
+
+      // thin fresnel rim — restrained edge glow, no bloom needed
+      const rimGeo = new THREE.SphereGeometry(radius * 1.03, 28, 28);
+      const rimMat = new THREE.ShaderMaterial({
+        uniforms: { glowColor: { value: color.clone() } },
+        vertexShader:
+          'varying vec3 vNormal;\n' +
+          'varying vec3 vViewDir;\n' +
+          'void main() {\n' +
+          '  vNormal = normalize(normalMatrix * normal);\n' +
+          '  vec4 mvPos = modelViewMatrix * vec4(position, 1.0);\n' +
+          '  vViewDir = normalize(-mvPos.xyz);\n' +
+          '  gl_Position = projectionMatrix * mvPos;\n' +
+          '}',
+        fragmentShader:
+          'uniform vec3 glowColor;\n' +
+          'varying vec3 vNormal;\n' +
+          'varying vec3 vViewDir;\n' +
+          'void main() {\n' +
+          '  float rim = 1.0 - max(dot(vNormal, vViewDir), 0.0);\n' +
+          '  float glow = pow(rim, 3.2);\n' +
+          '  gl_FragColor = vec4(glowColor, glow * 0.28);\n' +
+          '}',
+        transparent: true,
+        depthWrite: false,
+        side: THREE.FrontSide,
+        blending: THREE.AdditiveBlending,
+      });
+      const rimMesh = new THREE.Mesh(rimGeo, rimMat);
+      rimMesh.position.copy(pos);
+      scene.add(rimMesh);
+      glowSpritesRef.current.push(rimMesh);
+
+      if (p.faction === 'Maison Impériale' && colorMode === 'faction') {
+        const ringGeo = new THREE.RingGeometry(radius * 1.6, radius * 1.75, 48);
+        const ringMat = new THREE.MeshBasicMaterial({ color: COLORS.gold, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.position.copy(pos);
+        ring.rotation.x = Math.PI / 2.3;
+        scene.add(ring);
+        linesRef.current.push(ring);
+      }
+    });
+
+    routes.forEach(([a, b]) => {
+      const ma = meshMapRef.current[a];
+      const mb = meshMapRef.current[b];
+      if (!ma || !mb) return;
+      const geometry = new THREE.BufferGeometry().setFromPoints([ma.position, mb.position]);
+      const material = new THREE.LineBasicMaterial({ color: new THREE.Color(COLORS.accent), transparent: true, opacity: 0.3 });
+      const line = new THREE.Line(geometry, material);
+      scene.add(line);
+      linesRef.current.push(line);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [planets, routes, colorMode, imageCache]);
+
+  // ---- Guided tour ----
+  useEffect(() => {
+    if (!tourActive) return;
+    if (planets.length === 0) {
+      setTourActive(false);
+      return;
+    }
+    let cancelled = false;
+    let idx = 0;
+    let timer = null;
+
+    function step() {
+      if (cancelled) return;
+      const p = planets[idx];
+      const pos = sphericalToVector3(p.orbitRadius, p.orbitAngle, p.elevation);
+      setSelectedId(p.id);
+      focusDesiredRef.current.copy(pos);
+      radiusDesiredRef.current = 12;
+      idx += 1;
+      if (idx >= planets.length) {
+        timer = setTimeout(() => {
+          if (!cancelled) setTourActive(false);
+        }, 4200);
+        return;
+      }
+      timer = setTimeout(step, 4200);
+    }
+    step();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [tourActive, planets]);
+
+  const selectedPlanet = planets.find((p) => p.id === selectedId) || null;
+
+  function handleManualSave() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ planets, routes, mapSettings }));
+      setSaveError(false);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2000);
+    } catch (e) {
+      setSaveError(true);
+    }
+  }
+
+  function requestDeletePlanet(id) {
+    setConfirmDialog({
+      message: 'Supprimer définitivement cette planète et ses routes commerciales ?',
+      onConfirm: () => {
+        const doomed = planets.find((p) => p.id === id);
+        if (doomed) {
+          if (isImageKey(doomed.imageUrl)) idbDeleteImage(doomed.imageUrl).catch(() => {});
+          if (isImageKey(doomed.crestUrl)) idbDeleteImage(doomed.crestUrl).catch(() => {});
+          setImageCache((c) => {
+            if (!isImageKey(doomed.imageUrl) && !isImageKey(doomed.crestUrl)) return c;
+            const next = { ...c };
+            delete next[doomed.imageUrl];
+            delete next[doomed.crestUrl];
+            return next;
+          });
+        }
+        setPlanets((prev) => prev.filter((p) => p.id !== id));
+        setRoutes((prev) => prev.filter(([a, b]) => a !== id && b !== id));
+        if (selectedId === id) setSelectedId(null);
+        setConfirmDialog(null);
+      },
+    });
+  }
+
+  function requestDeleteRoute(a, b) {
+    setConfirmDialog({
+      message: 'Supprimer cette route commerciale ?',
+      onConfirm: () => {
+        setRoutes((prev) => prev.filter(([x, y]) => !(x === a && y === b)));
+        setConfirmDialog(null);
+      },
+    });
+  }
+
+  function requestReset() {
+    setConfirmDialog({
+      message: 'Réinitialiser toutes les données à la carte de départ ? Tes modifications seront perdues.',
+      onConfirm: () => {
+        idbClearImages().catch(() => {});
+        setImageCache({});
+        setPlanets(DEFAULT_PLANETS);
+        setRoutes(DEFAULT_ROUTES);
+        setMapSettings({ skyboxUrl: '', bannerUrl: '', panelBgUrl: '' });
+        setSelectedId(null);
+        setConfirmDialog(null);
+      },
+    });
+  }
+
+  function openNewPlanetForm() {
+    setImageError(false);
+    originalPlanetImagesRef.current = { imageUrl: '', crestUrl: '' };
+    setEditingPlanet({
+      id: null,
+      name: '',
+      house: '',
+      faction: 'Maison Mineure',
+      environment: 'barren',
+      description: '',
+      resources: '',
+      size: 'small',
+      orbitRadius: 16,
+      orbitAngle: Math.round(Math.random() * 360),
+      elevation: 0,
+      distanceLy: '',
+      imageUrl: '',
+      crestUrl: '',
+    });
+  }
+
+  function openEditPlanetForm(p) {
+    setImageError(false);
+    originalPlanetImagesRef.current = { imageUrl: p.imageUrl || '', crestUrl: p.crestUrl || '' };
+    setEditingPlanet({ imageUrl: '', crestUrl: '', ...p });
+  }
+
+  // Discards the in-progress edit. Any image uploaded during this session that
+  // never got saved is deleted from IndexedDB so it doesn't linger as an orphan.
+  function closeEditPlanetForm() {
+    setEditingPlanet((p) => {
+      if (p) {
+        const orig = originalPlanetImagesRef.current;
+        if (isImageKey(p.imageUrl) && p.imageUrl !== orig.imageUrl) {
+          idbDeleteImage(p.imageUrl).catch(() => {});
+          setImageCache((c) => {
+            const next = { ...c };
+            delete next[p.imageUrl];
+            return next;
+          });
+        }
+        if (isImageKey(p.crestUrl) && p.crestUrl !== orig.crestUrl) {
+          idbDeleteImage(p.crestUrl).catch(() => {});
+          setImageCache((c) => {
+            const next = { ...c };
+            delete next[p.crestUrl];
+            return next;
+          });
+        }
+      }
+      return null;
+    });
+  }
+
+  function handleEditingImageFile(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setImageError(false);
+    readImageAsDataUrl(file, 1600, 0.82)
+      .then((dataUrl) => {
+        const key = makeImageKey();
+        return idbPutImage(key, dataUrl).then(() => {
+          setImageCache((c) => ({ ...c, [key]: dataUrl }));
+          setEditingPlanet((p) => {
+            if (!p) return p;
+            const prevKey = p.imageUrl;
+            if (isImageKey(prevKey) && prevKey !== originalPlanetImagesRef.current.imageUrl) {
+              idbDeleteImage(prevKey).catch(() => {});
+              setImageCache((c) => {
+                const next = { ...c };
+                delete next[prevKey];
+                return next;
+              });
+            }
+            return { ...p, imageUrl: key };
+          });
+        });
+      })
+      .catch(() => setImageError(true));
+  }
+
+  function handleEditingCrestFile(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setImageError(false);
+    readImageAsDataUrl(file, 400, 0.9)
+      .then((dataUrl) => {
+        const key = makeImageKey();
+        return idbPutImage(key, dataUrl).then(() => {
+          setImageCache((c) => ({ ...c, [key]: dataUrl }));
+          setEditingPlanet((p) => {
+            if (!p) return p;
+            const prevKey = p.crestUrl;
+            if (isImageKey(prevKey) && prevKey !== originalPlanetImagesRef.current.crestUrl) {
+              idbDeleteImage(prevKey).catch(() => {});
+              setImageCache((c) => {
+                const next = { ...c };
+                delete next[prevKey];
+                return next;
+              });
+            }
+            return { ...p, crestUrl: key };
+          });
+        });
+      })
+      .catch(() => setImageError(true));
+  }
+
+  function handleSettingsImageFile(field, maxDim, quality) {
+    return function (e) {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      setSettingsImageError(false);
+      readImageAsDataUrl(file, maxDim, quality)
+        .then((dataUrl) => {
+          const key = makeImageKey();
+          return idbPutImage(key, dataUrl).then(() => {
+            setImageCache((c) => ({ ...c, [key]: dataUrl }));
+            setMapSettings((s) => {
+              const prevKey = s[field];
+              if (isImageKey(prevKey)) {
+                idbDeleteImage(prevKey).catch(() => {});
+                setImageCache((c) => {
+                  const next = { ...c };
+                  delete next[prevKey];
+                  return next;
+                });
+              }
+              return { ...s, [field]: key };
+            });
+          });
+        })
+        .catch(() => setSettingsImageError(true));
+    };
+  }
+
+  function clearSettingsImage(field) {
+    setMapSettings((s) => {
+      const prevKey = s[field];
+      if (isImageKey(prevKey)) {
+        idbDeleteImage(prevKey).catch(() => {});
+        setImageCache((c) => {
+          const next = { ...c };
+          delete next[prevKey];
+          return next;
+        });
+      }
+      return { ...s, [field]: '' };
+    });
+  }
+
+  function savePlanetForm() {
+    if (!editingPlanet || !editingPlanet.name.trim()) return;
+    const orig = originalPlanetImagesRef.current;
+    if (isImageKey(orig.imageUrl) && orig.imageUrl !== editingPlanet.imageUrl) {
+      idbDeleteImage(orig.imageUrl).catch(() => {});
+      setImageCache((c) => {
+        const next = { ...c };
+        delete next[orig.imageUrl];
+        return next;
+      });
+    }
+    if (isImageKey(orig.crestUrl) && orig.crestUrl !== editingPlanet.crestUrl) {
+      idbDeleteImage(orig.crestUrl).catch(() => {});
+      setImageCache((c) => {
+        const next = { ...c };
+        delete next[orig.crestUrl];
+        return next;
+      });
+    }
+    setPlanets((prev) => {
+      if (editingPlanet.id) {
+        return prev.map((p) => (p.id === editingPlanet.id ? { ...editingPlanet } : p));
+      }
+      const newPlanet = { ...editingPlanet, id: makeId(editingPlanet.name) };
+      return [...prev, newPlanet];
+    });
+    setEditingPlanet(null);
+  }
+
+  function addRoute() {
+    if (!routeDraft.a || !routeDraft.b || routeDraft.a === routeDraft.b) return;
+    setRoutes((prev) => {
+      const exists = prev.some(
+        ([a, b]) => (a === routeDraft.a && b === routeDraft.b) || (a === routeDraft.b && b === routeDraft.a)
+      );
+      if (exists) return prev;
+      return [...prev, [routeDraft.a, routeDraft.b]];
+    });
+    setRouteDraft({ a: '', b: '' });
+  }
+
+  const legendItems =
+    colorMode === 'environment'
+      ? ENVIRONMENTS.map((e) => ({ label: e.label, color: e.color }))
+      : FACTIONS.map((f) => ({ label: f, color: FACTION_COLORS[f] }));
+
+  const routeDistances = routes.map(([a, b]) => {
+    const pa = planets.find((p) => p.id === a);
+    const pb = planets.find((p) => p.id === b);
+    if (!pa || !pb) return null;
+    const va = sphericalToVector3(pa.orbitRadius, pa.orbitAngle, pa.elevation);
+    const vb = sphericalToVector3(pb.orbitRadius, pb.orbitAngle, pb.elevation);
+    return Math.round(va.distanceTo(vb) * 10) / 10;
+  });
+
+  return (
+    <div
+      className="relative w-full h-screen overflow-hidden select-none"
+      style={{ background: COLORS.bgVoid, color: COLORS.text, fontFamily: "'IBM Plex Sans', sans-serif" }}
+    >
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+        .lgm-scroll::-webkit-scrollbar { width: 6px; }
+        .lgm-scroll::-webkit-scrollbar-thumb { background: ${COLORS.panelBorder}; border-radius: 4px; }
+
+        .lgm-btn {
+          transition: border-color 0.15s ease, background-color 0.15s ease;
+        }
+        .lgm-btn:hover { border-color: ${COLORS.accent}; }
+
+        .lgm-label-dot {
+          display: inline-block; width: 6px; height: 6px; border-radius: 9999px; margin-right: 6px; vertical-align: middle;
+        }
+
+        .lgm-input {
+          transition: border-color 0.15s ease;
+        }
+        .lgm-input:focus {
+          border-color: ${COLORS.accent} !important;
+        }
+
+        @keyframes lgm-holo-flicker {
+          0%, 100% { opacity: 1; }
+          8% { opacity: 0.965; }
+          9% { opacity: 1; }
+          32% { opacity: 1; }
+          33% { opacity: 0.955; }
+          35% { opacity: 1; }
+          67% { opacity: 1; }
+          68% { opacity: 0.975; }
+          70% { opacity: 1; }
+        }
+        .lgm-hologram { animation: lgm-holo-flicker 7s infinite; }
+
+        @keyframes lgm-scan-drift {
+          from { background-position: 0 0; }
+          to { background-position: 0 120px; }
+        }
+        .lgm-scanlines {
+          background-image: repeating-linear-gradient(
+            to bottom,
+            rgba(212,162,76,0.05) 0px,
+            rgba(212,162,76,0.05) 1px,
+            transparent 1px,
+            transparent 3px
+          );
+          animation: lgm-scan-drift 9s linear infinite;
+        }
+      `}</style>
+
+      <div ref={mountRef} className="absolute inset-0 lgm-hologram" />
+
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: `radial-gradient(ellipse at center, transparent 40%, ${COLORS.bgVoid} 100%)` }}
+      />
+      <div className="absolute inset-0 pointer-events-none lgm-scanlines" />
+
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {planets.map((p) => (
+          <div
+            key={p.id}
+            ref={(el) => {
+              labelRefs.current[p.id] = el;
+            }}
+            className="absolute"
+            style={{ transform: 'translate(-9999px,-9999px)', transition: 'opacity 0.2s', marginLeft: '10px', marginTop: '-6px' }}
+          >
+            <span
+              className="text-xs whitespace-nowrap px-1.5 py-0.5 rounded"
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                background: p.id === selectedId ? 'rgba(10,9,6,0.85)' : 'rgba(10,9,6,0.55)',
+                color: p.id === selectedId ? COLORS.accent : COLORS.textMuted,
+                border: '1px solid ' + (p.id === selectedId ? COLORS.accent : 'transparent'),
+              }}
+            >
+              <span className="lgm-label-dot" style={{ background: getPlanetColor(p, colorMode) }} />
+              {p.name}
+            </span>
+          </div>
+        ))}
+        {routes.map((route, i) => (
+          <div
+            key={'route-' + i}
+            ref={(el) => {
+              routeLabelRefs.current[i] = el;
+            }}
+            className="absolute"
+            style={{ transform: 'translate(-9999px,-9999px)', transition: 'opacity 0.2s' }}
+          >
+            <span
+              className="text-xs whitespace-nowrap px-1 rounded"
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: '10px',
+                background: 'rgba(10,9,6,0.5)',
+                color: COLORS.accent,
+              }}
+            >
+              {routeDistances[i] != null ? '≈' + routeDistances[i] + ' al' : ''}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="absolute top-0 left-0 right-0 flex items-start justify-between p-4 pointer-events-none">
+        <div className="pointer-events-auto flex items-center gap-3">
+          {resolveImage(mapSettings.bannerUrl) && (
+            <img
+              src={resolveImage(mapSettings.bannerUrl)}
+              alt=""
+              className="rounded flex-shrink-0"
+              style={{ width: 44, height: 44, objectFit: 'cover', border: '1px solid ' + COLORS.panelBorder }}
+            />
+          )}
+          <div>
+            <h1 className="text-xl md:text-2xl tracking-wide" style={{ fontFamily: "'Cinzel', serif", color: COLORS.text }}>
+              Carte du Landsraad
+            </h1>
+            <p className="text-xs mt-1" style={{ color: COLORS.textMuted, letterSpacing: '0.02em' }}>
+              Maisons et factions de l'Imperium — distances estimées depuis Kaitain
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 pointer-events-auto justify-end">
+          <button
+            onClick={() => setColorMode((m) => (m === 'faction' ? 'environment' : 'faction'))}
+            className="lgm-btn flex items-center gap-1.5 text-xs px-3 py-2 rounded"
+            style={toolbarBtnStyle(colorMode === 'environment')}
+            title="Basculer entre coloration par faction et coloration par environnement"
+          >
+            <Palette size={14} />
+            {colorMode === 'environment' ? 'Couleurs : Environnements' : 'Couleurs : Factions'}
+          </button>
+          <button
+            onClick={() => setTourActive((v) => !v)}
+            className="lgm-btn flex items-center gap-1.5 text-xs px-3 py-2 rounded"
+            style={toolbarBtnStyle(tourActive)}
+          >
+            {tourActive ? <Square size={14} /> : <Compass size={14} />}
+            {tourActive ? 'Arrêter' : 'Visite guidée'}
+          </button>
+          <button
+            onClick={() => setEditMode((v) => !v)}
+            className="lgm-btn flex items-center gap-1.5 text-xs px-3 py-2 rounded"
+            style={toolbarBtnStyle(editMode)}
+          >
+            <Settings size={14} />
+            {editMode ? 'Édition : ON' : 'Édition : OFF'}
+          </button>
+          <button
+            onClick={handleManualSave}
+            className="lgm-btn flex items-center gap-1.5 text-xs px-3 py-2 rounded"
+            style={toolbarBtnStyle(justSaved)}
+          >
+            {justSaved ? <Check size={14} /> : <Save size={14} />}
+            {justSaved ? 'Enregistré' : 'Enregistrer'}
+          </button>
+        </div>
+      </div>
+
+      <div
+        className="absolute bottom-4 left-4 rounded-lg p-3 pointer-events-none"
+        style={{ background: 'rgba(22,18,9,0.75)', border: '1px solid ' + COLORS.panelBorder }}
+      >
+        <p className="text-xs mb-2" style={{ color: COLORS.textMuted, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.08em' }}>
+          CATÉGORIES
+        </p>
+        <div className="flex flex-col gap-1.5">
+          {legendItems.map((item) => (
+            <div key={item.label} className="flex items-center gap-2 text-xs">
+              <span className="inline-block rounded-full" style={{ width: 8, height: 8, background: item.color }} />
+              <span style={{ color: COLORS.text }}>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {!editMode && !selectedPlanet && (
+        <div className="absolute bottom-4 right-4 text-xs pointer-events-none" style={{ color: COLORS.textMuted }}>
+          glisser pour tourner · molette pour zoomer · clic sur une planète
+        </div>
+      )}
+
+      {saveError && (
+        <div
+          className="absolute top-4 left-1/2 -translate-x-1/2 text-xs px-3 py-1.5 rounded pointer-events-none"
+          style={{ background: COLORS.crimson + '33', color: COLORS.crimson, border: '1px solid ' + COLORS.crimson + '66' }}
+        >
+          Sauvegarde impossible — tes modifications resteront le temps de la session
+        </div>
+      )}
+
+      {!loaded && (
+        <div className="absolute inset-0 flex items-center justify-center" style={{ background: COLORS.bgVoid }}>
+          <div className="flex items-center gap-2 text-sm" style={{ color: COLORS.textMuted }}>
+            <Loader2 size={16} className="animate-spin" />
+            Chargement de la carte…
+          </div>
+        </div>
+      )}
+
+      {selectedPlanet && (
+        <div
+          className="absolute top-0 right-0 h-full w-full sm:w-96 overflow-y-auto lgm-scroll p-5"
+          style={{
+            background: resolveImage(mapSettings.panelBgUrl)
+              ? `linear-gradient(rgba(15,12,7,0.90), rgba(15,12,7,0.90)), url(${resolveImage(mapSettings.panelBgUrl)}) center / cover no-repeat`
+              : 'rgba(15,12,7,0.92)',
+            borderLeft: '1px solid ' + COLORS.panelBorder,
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-2.5">
+              {resolveImage(selectedPlanet.crestUrl) && (
+                <img
+                  src={resolveImage(selectedPlanet.crestUrl)}
+                  alt=""
+                  className="rounded flex-shrink-0"
+                  style={{ width: 34, height: 34, objectFit: 'cover', border: '1px solid ' + COLORS.panelBorder }}
+                />
+              )}
+              <div>
+                <h2 className="text-lg" style={{ fontFamily: "'Cinzel', serif", color: COLORS.text }}>
+                  {selectedPlanet.name}
+                </h2>
+                <p className="text-xs mt-0.5" style={{ color: COLORS.textMuted }}>
+                  Maison {selectedPlanet.house}
+                </p>
+              </div>
+            </div>
+            <button onClick={() => setSelectedId(null)} className="lgm-btn rounded p-1" style={{ color: COLORS.textMuted, boxShadow: 'none' }}>
+              <X size={18} />
+            </button>
+          </div>
+
+          {resolveImage(selectedPlanet.imageUrl) && (
+            <div className="mb-4 rounded overflow-hidden" style={{ border: '1px solid ' + COLORS.panelBorder }}>
+              <img
+                src={resolveImage(selectedPlanet.imageUrl)}
+                alt={selectedPlanet.name}
+                className="w-full block"
+                style={{ maxHeight: 220, objectFit: 'cover' }}
+              />
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2 mb-4">
+            <span
+              className="text-xs px-2 py-1 rounded"
+              style={{
+                background: FACTION_COLORS[selectedPlanet.faction] + '22',
+                color: FACTION_COLORS[selectedPlanet.faction],
+                border: '1px solid ' + FACTION_COLORS[selectedPlanet.faction] + '55',
+              }}
+            >
+              {selectedPlanet.faction}
+            </span>
+            {selectedPlanet.environment && (
+              <span
+                className="text-xs px-2 py-1 rounded"
+                style={{
+                  background: ENVIRONMENT_COLORS[selectedPlanet.environment] + '22',
+                  color: ENVIRONMENT_COLORS[selectedPlanet.environment],
+                  border: '1px solid ' + ENVIRONMENT_COLORS[selectedPlanet.environment] + '55',
+                }}
+              >
+                {ENVIRONMENT_LABELS[selectedPlanet.environment]}
+              </span>
+            )}
+          </div>
+
+          <p className="text-sm leading-relaxed mb-4" style={{ color: COLORS.text }}>
+            {selectedPlanet.description}
+          </p>
+
+          {selectedPlanet.resources && (
+            <div className="text-xs mb-4 rounded p-2.5" style={{ background: 'rgba(255,255,255,0.025)', borderLeft: '2px solid ' + COLORS.jade }}>
+              <p style={{ color: COLORS.textMuted, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em' }}>RESSOURCES</p>
+              <p className="mt-1" style={{ color: COLORS.text }}>
+                {selectedPlanet.resources}
+              </p>
+            </div>
+          )}
+
+          {selectedPlanet.distanceLy !== '' && selectedPlanet.distanceLy != null && (
+            <div
+              className="text-xs mb-4 rounded p-2.5"
+              style={{ background: 'rgba(255,255,255,0.03)', borderLeft: '2px solid ' + COLORS.gold }}
+            >
+              <p style={{ color: COLORS.textMuted, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em' }}>DISTANCE</p>
+              <p className="mt-1" style={{ color: COLORS.text }}>
+                {selectedPlanet.distanceLy} années-lumière depuis Kaitain
+              </p>
+            </div>
+          )}
+
+          {editMode && (
+            <div className="flex gap-2 pt-3" style={{ borderTop: '1px solid ' + COLORS.panelBorder }}>
+              <button
+                onClick={() => openEditPlanetForm(selectedPlanet)}
+                className="lgm-btn flex items-center gap-1.5 text-xs px-3 py-2 rounded"
+                style={toolbarBtnStyle(false)}
+              >
+                <Pencil size={13} /> Modifier
+              </button>
+              <button
+                onClick={() => requestDeletePlanet(selectedPlanet.id)}
+                className="lgm-btn flex items-center gap-1.5 text-xs px-3 py-2 rounded"
+                style={{ ...toolbarBtnStyle(false), color: COLORS.crimson, borderColor: COLORS.crimson + '66' }}
+              >
+                <Trash2 size={13} /> Supprimer
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {editMode && (
+        <div
+          className="absolute top-0 left-0 h-full w-full sm:w-80 overflow-y-auto lgm-scroll p-5"
+          style={{ background: 'rgba(15,12,7,0.92)', borderRight: '1px solid ' + COLORS.panelBorder, backdropFilter: 'blur(4px)' }}
+        >
+          <h3 className="text-sm mb-3" style={{ fontFamily: "'Cinzel', serif", color: COLORS.text, letterSpacing: '0.04em' }}>
+            Chancellerie
+          </h3>
+
+          <button
+            onClick={() => {
+              setSettingsImageError(false);
+              setSettingsOpen(true);
+            }}
+            className="lgm-btn w-full flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded mb-2"
+            style={toolbarBtnStyle(false)}
+          >
+            <ImageIcon size={14} /> Personnaliser l'apparence
+          </button>
+
+          <button
+            onClick={openNewPlanetForm}
+            className="lgm-btn w-full flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded mb-4"
+            style={toolbarBtnStyle(true)}
+          >
+            <Plus size={14} /> Ajouter une planète
+          </button>
+
+          <p className="text-xs mb-2" style={{ color: COLORS.textMuted, fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.06em' }}>
+            PLANÈTES ({planets.length})
+          </p>
+          <div className="flex flex-col gap-1.5 mb-5">
+            {planets.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between text-xs px-2 py-1.5 rounded transition-colors"
+                style={{ background: p.id === selectedId ? COLORS.accentSoft : 'rgba(255,255,255,0.03)' }}
+              >
+                <button
+                  onClick={() => {
+                    setSelectedId(p.id);
+                    focusDesiredRef.current.copy(sphericalToVector3(p.orbitRadius, p.orbitAngle, p.elevation));
+                    radiusDesiredRef.current = 12;
+                  }}
+                  className="text-left flex-1 truncate flex items-center"
+                  style={{ color: COLORS.text }}
+                >
+                  <span className="lgm-label-dot" style={{ background: getPlanetColor(p, colorMode) }} />
+                  {p.name}
+                </button>
+                <div className="flex gap-1 ml-2">
+                  <button onClick={() => openEditPlanetForm(p)} className="lgm-btn rounded p-0.5" style={{ color: COLORS.textMuted, boxShadow: 'none' }}>
+                    <Pencil size={12} />
+                  </button>
+                  <button onClick={() => requestDeletePlanet(p.id)} className="lgm-btn rounded p-0.5" style={{ color: COLORS.textMuted, boxShadow: 'none' }}>
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-xs mb-2" style={{ color: COLORS.textMuted, fontFamily: "'IBM Plex Mono', monospace" }}>
+            ROUTES COMMERCIALES ({routes.length})
+          </p>
+          <div className="flex flex-col gap-1.5 mb-3">
+            {routes.map(([a, b], i) => {
+              const pa = planets.find((p) => p.id === a);
+              const pb = planets.find((p) => p.id === b);
+              if (!pa || !pb) return null;
+              return (
+                <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 rounded" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                  <span style={{ color: COLORS.text }}>
+                    {pa.name} — {pb.name}
+                  </span>
+                  <button onClick={() => requestDeleteRoute(a, b)} className="lgm-btn rounded p-0.5" style={{ color: COLORS.textMuted, boxShadow: 'none' }}>
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-col gap-2 mb-5">
+            <div className="flex gap-2">
+              <select
+                value={routeDraft.a}
+                onChange={(e) => setRouteDraft((d) => ({ ...d, a: e.target.value }))}
+                className="flex-1 text-xs rounded px-2 py-1.5 lgm-input"
+                style={inputStyle}
+              >
+                <option value="">Origine…</option>
+                {planets.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={routeDraft.b}
+                onChange={(e) => setRouteDraft((d) => ({ ...d, b: e.target.value }))}
+                className="flex-1 text-xs rounded px-2 py-1.5 lgm-input"
+                style={inputStyle}
+              >
+                <option value="">Destination…</option>
+                {planets.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button onClick={addRoute} className="lgm-btn flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded" style={toolbarBtnStyle(false)}>
+              <Link2 size={13} /> Ajouter la route
+            </button>
+          </div>
+
+          <button
+            onClick={requestReset}
+            className="lgm-btn w-full flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded"
+            style={{ ...toolbarBtnStyle(false), color: COLORS.crimson, borderColor: COLORS.crimson + '66' }}
+          >
+            <RotateCcw size={13} /> Réinitialiser la carte
+          </button>
+        </div>
+      )}
+
+      {settingsOpen && (
+        <div className="absolute inset-0 flex items-center justify-center p-4 z-20" style={{ background: 'rgba(6,5,3,0.7)', backdropFilter: 'blur(3px)' }}>
+          <div className="w-full max-w-md max-h-full overflow-y-auto lgm-scroll rounded-lg p-5" style={{ background: COLORS.panel, border: '1px solid ' + COLORS.panelBorder }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base" style={{ fontFamily: "'Cinzel', serif", color: COLORS.text }}>
+                Personnaliser l'apparence
+              </h3>
+              <button onClick={() => setSettingsOpen(false)} className="lgm-btn rounded p-1" style={{ color: COLORS.textMuted, boxShadow: 'none' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <AppearanceImageField
+                label="Fond de l'univers (skybox)"
+                hint="Idéalement une texture équirectangulaire (ratio 2:1) : étoiles, nébuleuse… Remplace le fond généré automatiquement."
+                url={resolveImage(mapSettings.skyboxUrl)}
+                previewWidth={64}
+                previewHeight={40}
+                onChangeFile={handleSettingsImageFile('skyboxUrl', 2048, 0.8)}
+                onClear={() => clearSettingsImage('skyboxUrl')}
+              />
+
+              <AppearanceImageField
+                label="Bannière / logo en en-tête"
+                hint={'Affiché à côté du titre « Carte du Landsraad ».'}
+                url={resolveImage(mapSettings.bannerUrl)}
+                previewWidth={44}
+                previewHeight={44}
+                onChangeFile={handleSettingsImageFile('bannerUrl', 800, 0.88)}
+                onClear={() => clearSettingsImage('bannerUrl')}
+              />
+
+              <AppearanceImageField
+                label="Fond du panneau de détail"
+                hint="Utilisé en arrière-plan (assombri) de la fiche planète, à droite."
+                url={resolveImage(mapSettings.panelBgUrl)}
+                previewWidth={64}
+                previewHeight={44}
+                onChangeFile={handleSettingsImageFile('panelBgUrl', 1400, 0.82)}
+                onClear={() => clearSettingsImage('panelBgUrl')}
+              />
+
+              {settingsImageError && (
+                <p className="text-xs" style={{ color: COLORS.crimson }}>
+                  Impossible de charger cette image — réessaie avec un autre fichier.
+                </p>
+              )}
+            </div>
+
+            <button
+              onClick={() => setSettingsOpen(false)}
+              className="lgm-btn w-full text-sm px-3 py-2 rounded mt-5"
+              style={toolbarBtnStyle(true)}
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {editingPlanet && (
+        <div className="absolute inset-0 flex items-center justify-center p-4 z-20" style={{ background: 'rgba(6,5,3,0.7)', backdropFilter: 'blur(3px)' }}>
+          <div className="w-full max-w-md max-h-full overflow-y-auto lgm-scroll rounded-lg p-5" style={{ background: COLORS.panel, border: '1px solid ' + COLORS.panelBorder }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base" style={{ fontFamily: "'Cinzel', serif", color: COLORS.text }}>
+                {editingPlanet.id ? 'Modifier la planète' : 'Nouvelle planète'}
+              </h3>
+              <button onClick={closeEditPlanetForm} className="lgm-btn rounded p-1" style={{ color: COLORS.textMuted, boxShadow: 'none' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <Field label="Nom de la planète">
+                <input
+                  value={editingPlanet.name}
+                  onChange={(e) => setEditingPlanet((p) => ({ ...p, name: e.target.value }))}
+                  className="w-full text-sm rounded px-2.5 py-2 lgm-input"
+                  style={inputStyle}
+                  placeholder="ex. Kolhar"
+                />
+              </Field>
+              <Field label="Maison régnante">
+                <input
+                  value={editingPlanet.house}
+                  onChange={(e) => setEditingPlanet((p) => ({ ...p, house: e.target.value }))}
+                  className="w-full text-sm rounded px-2.5 py-2 lgm-input"
+                  style={inputStyle}
+                  placeholder="ex. Maison Mikarrol"
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Faction / Catégorie">
+                  <select
+                    value={editingPlanet.faction}
+                    onChange={(e) => setEditingPlanet((p) => ({ ...p, faction: e.target.value }))}
+                    className="w-full text-sm rounded px-2.5 py-2 lgm-input"
+                    style={inputStyle}
+                  >
+                    {FACTIONS.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Environnement">
+                  <select
+                    value={editingPlanet.environment || 'barren'}
+                    onChange={(e) => setEditingPlanet((p) => ({ ...p, environment: e.target.value }))}
+                    className="w-full text-sm rounded px-2.5 py-2 lgm-input"
+                    style={inputStyle}
+                  >
+                    {ENVIRONMENTS.map((env) => (
+                      <option key={env.value} value={env.value}>
+                        {env.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+
+              <Field label="Image personnalisée (optionnel)">
+                <div className="flex items-center gap-3">
+                  {resolveImage(editingPlanet.imageUrl) ? (
+                    <img
+                      src={resolveImage(editingPlanet.imageUrl)}
+                      alt=""
+                      className="rounded object-cover flex-shrink-0"
+                      style={{ width: 56, height: 56, border: '1px solid ' + COLORS.panelBorder }}
+                    />
+                  ) : (
+                    <div
+                      className="rounded flex items-center justify-center flex-shrink-0"
+                      style={{ width: 56, height: 56, border: '1px dashed ' + COLORS.panelBorder, color: COLORS.dim }}
+                    >
+                      <ImageIcon size={20} />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <label
+                      className="lgm-btn text-xs px-2.5 py-1.5 rounded text-center cursor-pointer"
+                      style={toolbarBtnStyle(false)}
+                    >
+                      {editingPlanet.imageUrl ? "Changer l'image" : 'Choisir une image'}
+                      <input type="file" accept="image/*" onChange={handleEditingImageFile} className="hidden" />
+                    </label>
+                    {editingPlanet.imageUrl && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditingPlanet((p) => {
+                            if (isImageKey(p.imageUrl) && p.imageUrl !== originalPlanetImagesRef.current.imageUrl) {
+                              idbDeleteImage(p.imageUrl).catch(() => {});
+                              setImageCache((c) => {
+                                const next = { ...c };
+                                delete next[p.imageUrl];
+                                return next;
+                              });
+                            }
+                            return { ...p, imageUrl: '' };
+                          })
+                        }
+                        className="lgm-btn text-xs px-2.5 py-1.5 rounded"
+                        style={{ ...toolbarBtnStyle(false), color: COLORS.crimson, borderColor: COLORS.crimson + '66' }}
+                      >
+                        Retirer l'image
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs mt-1.5 leading-relaxed" style={{ color: COLORS.textMuted }}>
+                  Idéalement une texture équirectangulaire (ratio 2:1). Sans image, une texture est générée automatiquement selon l'environnement.
+                </p>
+                {imageError && (
+                  <p className="text-xs mt-1" style={{ color: COLORS.crimson }}>
+                    Impossible de charger cette image — réessaie avec un autre fichier.
+                  </p>
+                )}
+              </Field>
+
+              <Field label="Blason de la maison (optionnel)">
+                <div className="flex items-center gap-3">
+                  {resolveImage(editingPlanet.crestUrl) ? (
+                    <img
+                      src={resolveImage(editingPlanet.crestUrl)}
+                      alt=""
+                      className="rounded object-cover flex-shrink-0"
+                      style={{ width: 44, height: 44, border: '1px solid ' + COLORS.panelBorder, background: 'rgba(255,255,255,0.03)' }}
+                    />
+                  ) : (
+                    <div
+                      className="rounded flex items-center justify-center flex-shrink-0"
+                      style={{ width: 44, height: 44, border: '1px dashed ' + COLORS.panelBorder, color: COLORS.dim }}
+                    >
+                      <ImageIcon size={16} />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <label
+                      className="lgm-btn text-xs px-2.5 py-1.5 rounded text-center cursor-pointer"
+                      style={toolbarBtnStyle(false)}
+                    >
+                      {editingPlanet.crestUrl ? 'Changer le blason' : 'Choisir un blason'}
+                      <input type="file" accept="image/*" onChange={handleEditingCrestFile} className="hidden" />
+                    </label>
+                    {editingPlanet.crestUrl && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditingPlanet((p) => {
+                            if (isImageKey(p.crestUrl) && p.crestUrl !== originalPlanetImagesRef.current.crestUrl) {
+                              idbDeleteImage(p.crestUrl).catch(() => {});
+                              setImageCache((c) => {
+                                const next = { ...c };
+                                delete next[p.crestUrl];
+                                return next;
+                              });
+                            }
+                            return { ...p, crestUrl: '' };
+                          })
+                        }
+                        className="lgm-btn text-xs px-2.5 py-1.5 rounded"
+                        style={{ ...toolbarBtnStyle(false), color: COLORS.crimson, borderColor: COLORS.crimson + '66' }}
+                      >
+                        Retirer le blason
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs mt-1.5 leading-relaxed" style={{ color: COLORS.textMuted }}>
+                  Affiché à côté du nom de la maison sur la fiche planète. Idéalement une image carrée.
+                </p>
+              </Field>
+
+              <Field label="Distance depuis Kaitain (a.l.)">
+                <input
+                  type="number"
+                  value={editingPlanet.distanceLy === undefined ? '' : editingPlanet.distanceLy}
+                  onChange={(e) => setEditingPlanet((p) => ({ ...p, distanceLy: e.target.value === '' ? '' : Number(e.target.value) }))}
+                  className="w-full text-sm rounded px-2.5 py-2 lgm-input"
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="Description">
+                <textarea
+                  value={editingPlanet.description}
+                  onChange={(e) => setEditingPlanet((p) => ({ ...p, description: e.target.value }))}
+                  rows={4}
+                  className="w-full text-sm rounded px-2.5 py-2 lgm-input"
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="Ressources (optionnel)">
+                <input
+                  value={editingPlanet.resources}
+                  onChange={(e) => setEditingPlanet((p) => ({ ...p, resources: e.target.value }))}
+                  className="w-full text-sm rounded px-2.5 py-2 lgm-input"
+                  style={inputStyle}
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Taille">
+                  <select
+                    value={editingPlanet.size}
+                    onChange={(e) => setEditingPlanet((p) => ({ ...p, size: e.target.value }))}
+                    className="w-full text-sm rounded px-2.5 py-2 lgm-input"
+                    style={inputStyle}
+                  >
+                    {SIZES.map((s) => (
+                      <option key={s.value} value={s.value}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Distance orbitale">
+                  <input
+                    type="number"
+                    value={editingPlanet.orbitRadius}
+                    onChange={(e) => setEditingPlanet((p) => ({ ...p, orbitRadius: Number(e.target.value) }))}
+                    className="w-full text-sm rounded px-2.5 py-2 lgm-input"
+                    style={inputStyle}
+                  />
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Angle (°)">
+                  <input
+                    type="number"
+                    value={editingPlanet.orbitAngle}
+                    onChange={(e) => setEditingPlanet((p) => ({ ...p, orbitAngle: Number(e.target.value) }))}
+                    className="w-full text-sm rounded px-2.5 py-2 lgm-input"
+                    style={inputStyle}
+                  />
+                </Field>
+                <Field label="Élévation (°)">
+                  <input
+                    type="number"
+                    value={editingPlanet.elevation}
+                    onChange={(e) => setEditingPlanet((p) => ({ ...p, elevation: Number(e.target.value) }))}
+                    className="w-full text-sm rounded px-2.5 py-2 lgm-input"
+                    style={inputStyle}
+                  />
+                </Field>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-5">
+              <button onClick={closeEditPlanetForm} className="lgm-btn flex-1 text-sm px-3 py-2 rounded" style={toolbarBtnStyle(false)}>
+                Annuler
+              </button>
+              <button onClick={savePlanetForm} className="lgm-btn flex-1 text-sm px-3 py-2 rounded" style={toolbarBtnStyle(true)}>
+                Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDialog && (
+        <div className="absolute inset-0 flex items-center justify-center p-4 z-30" style={{ background: 'rgba(6,5,3,0.75)', backdropFilter: 'blur(3px)' }}>
+          <div className="w-full max-w-sm rounded-lg p-5" style={{ background: COLORS.panel, border: '1px solid ' + COLORS.panelBorder }}>
+            <p className="text-sm mb-4" style={{ color: COLORS.text }}>
+              {confirmDialog.message}
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmDialog(null)} className="lgm-btn flex-1 text-sm px-3 py-2 rounded" style={toolbarBtnStyle(false)}>
+                Annuler
+              </button>
+              <button
+                onClick={confirmDialog.onConfirm}
+                className="lgm-btn flex-1 text-sm px-3 py-2 rounded"
+                style={{ ...toolbarBtnStyle(false), color: COLORS.crimson, borderColor: COLORS.crimson + '66' }}
+              >
+                Confirmer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const rootEl = document.getElementById('root');
+ReactDOM.createRoot(rootEl).render(<LandsraadGalaxyMap />);
+
+</script>
+</body>
+</html>
