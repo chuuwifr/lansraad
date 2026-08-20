@@ -22,6 +22,10 @@
   </div>
 </div>
 
+<!-- Sauvegarde intégrée : régénérée par le bouton "Exporter le fichier .html" de l'appli.
+     Ne pas éditer à la main — reste "null" tant qu'aucun export .html n'a été fait. -->
+<script type="application/json" id="landsraad-embedded-save">null</script>
+
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useRef } = React;
 
@@ -35,6 +39,7 @@ function Icon({ children, size = 16, style, className }) {
 }
 const X = (p) => <Icon {...p}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></Icon>;
 const Plus = (p) => <Icon {...p}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></Icon>;
+const Minus = (p) => <Icon {...p}><line x1="5" y1="12" x2="19" y2="12" /></Icon>;
 const Pencil = (p) => <Icon {...p}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></Icon>;
 const Trash2 = (p) => <Icon {...p}><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></Icon>;
 const Compass = (p) => <Icon {...p}><circle cx="12" cy="12" r="9" /><polygon points="15 9 11 11 9 15 13 13 15 9" /></Icon>;
@@ -765,6 +770,26 @@ function makeGalaxyStarfield() {
 
 const STORAGE_KEY = 'landsraad-galaxy-data-v2';
 
+// ---- Sauvegarde embarquée directement dans ce fichier HTML ----
+// Ecrite par le bouton "Exporter le fichier .html" (voir handleExportHtml plus bas).
+// Elle sert de point de départ quand ce fichier est ouvert dans un navigateur qui n'a
+// pas encore de localStorage pour lui (nouvel appareil, autre navigateur, fichier
+// récupéré depuis GitHub…) — le localStorage local reste prioritaire une fois présent.
+function readEmbeddedSave() {
+  try {
+    const el = document.getElementById('landsraad-embedded-save');
+    if (!el) return null;
+    const text = (el.textContent || '').trim();
+    if (!text || text === 'null') return null;
+    const data = JSON.parse(text);
+    if (data && typeof data === 'object' && Array.isArray(data.planets)) return data;
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+const EMBEDDED_SAVE = readEmbeddedSave();
+
 const DEFAULT_PLANETS = [
   {
     id: 'kaitain',
@@ -1471,6 +1496,8 @@ function LandsraadGalaxyMap() {
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const [importError, setImportError] = useState('');
   const [exportError, setExportError] = useState(false);
+  const [exportHtmlBusy, setExportHtmlBusy] = useState(false);
+  const [exportHtmlError, setExportHtmlError] = useState('');
 
   const mountRef = useRef(null);
   const labelRefs = useRef({});
@@ -1532,6 +1559,12 @@ function LandsraadGalaxyMap() {
             loadedPlanets = Array.isArray(data.planets) && data.planets.length ? data.planets : DEFAULT_PLANETS;
             loadedRoutes = Array.isArray(data.routes) ? data.routes : DEFAULT_ROUTES;
             loadedSettings = { skyboxUrl: '', bannerUrl: '', panelBgUrl: '', ...(data.mapSettings || {}) };
+          } else if (EMBEDDED_SAVE) {
+            // Pas encore de sauvegarde locale dans ce navigateur : on part de celle
+            // embarquée dans le fichier (voir EMBEDDED_SAVE plus haut).
+            loadedPlanets = Array.isArray(EMBEDDED_SAVE.planets) && EMBEDDED_SAVE.planets.length ? EMBEDDED_SAVE.planets : DEFAULT_PLANETS;
+            loadedRoutes = Array.isArray(EMBEDDED_SAVE.routes) ? EMBEDDED_SAVE.routes : DEFAULT_ROUTES;
+            loadedSettings = { skyboxUrl: '', bannerUrl: '', panelBgUrl: '', ...(EMBEDDED_SAVE.mapSettings || {}) };
           }
         } catch (e) {
           loadedPlanets = DEFAULT_PLANETS;
@@ -2218,6 +2251,13 @@ function LandsraadGalaxyMap() {
 
   const selectedPlanet = planets.find((p) => p.id === selectedId) || null;
 
+  function zoomIn() {
+    radiusDesiredRef.current = clamp(radiusDesiredRef.current - 6, 6, 70);
+  }
+  function zoomOut() {
+    radiusDesiredRef.current = clamp(radiusDesiredRef.current + 6, 6, 70);
+  }
+
   function handleManualSave() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ planets, routes, mapSettings }));
@@ -2279,27 +2319,33 @@ function LandsraadGalaxyMap() {
   }
 
   // ---- Export to a .json file (images embedded inline, so the file is fully portable) ----
+  // Shared by both export modes below: same portable shape, images resolved to base64
+  // inline (from IndexedDB) so the payload is fully self-contained either way.
+  function buildExportPayload() {
+    const exportPlanets = planets.map((p) => ({
+      ...p,
+      imageUrl: resolveImage(p.imageUrl),
+      crestUrl: resolveImage(p.crestUrl),
+    }));
+    const exportSettings = {
+      skyboxUrl: resolveImage(mapSettings.skyboxUrl),
+      bannerUrl: resolveImage(mapSettings.bannerUrl),
+      panelBgUrl: resolveImage(mapSettings.panelBgUrl),
+    };
+    return {
+      format: 'landsraad-galaxy-map',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      planets: exportPlanets,
+      routes,
+      mapSettings: exportSettings,
+    };
+  }
+
   function handleExportJson() {
     setExportError(false);
     try {
-      const exportPlanets = planets.map((p) => ({
-        ...p,
-        imageUrl: resolveImage(p.imageUrl),
-        crestUrl: resolveImage(p.crestUrl),
-      }));
-      const exportSettings = {
-        skyboxUrl: resolveImage(mapSettings.skyboxUrl),
-        bannerUrl: resolveImage(mapSettings.bannerUrl),
-        panelBgUrl: resolveImage(mapSettings.panelBgUrl),
-      };
-      const payload = {
-        format: 'landsraad-galaxy-map',
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        planets: exportPlanets,
-        routes,
-        mapSettings: exportSettings,
-      };
+      const payload = buildExportPayload();
       const json = JSON.stringify(payload, null, 2);
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -2313,6 +2359,58 @@ function LandsraadGalaxyMap() {
       setTimeout(() => URL.revokeObjectURL(url), 2000);
     } catch (e) {
       setExportError(true);
+    }
+  }
+
+  // ---- Export a full copy of this HTML file with the current state baked in ----
+  // Re-fetches this page's own raw source (so we get the pristine file, not the live
+  // DOM Babel/React have been mutating), swaps the <script id="landsraad-embedded-save">
+  // JSON payload for the current data, and downloads the result. Overwrite the .html
+  // file in the GitHub repo with it and the save travels with the file itself instead
+  // of depending on the browser's localStorage.
+  async function handleExportHtml() {
+    setExportHtmlError('');
+    setExportHtmlBusy(true);
+    try {
+      const payload = buildExportPayload();
+      const jsonForHtml = JSON.stringify(payload).replace(/</g, '\\u003c');
+
+      let html;
+      try {
+        const res = await fetch(document.location.href, { cache: 'no-store' });
+        if (!res.ok) throw new Error('fetch-failed');
+        html = await res.text();
+      } catch (fetchErr) {
+        throw new Error('fetch-blocked');
+      }
+
+      const savePattern = /<script type="application\/json" id="landsraad-embedded-save">[\s\S]*?<\/script>/;
+      if (!savePattern.test(html)) throw new Error('marker-missing');
+      html = html.replace(
+        savePattern,
+        '<script type="application/json" id="landsraad-embedded-save">' + jsonForHtml + '<\/script>'
+      );
+
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `carte-landsraad-${dateStr}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) {
+      if (e && e.message === 'fetch-blocked') {
+        setExportHtmlError(
+          "Impossible de relire ce fichier depuis ce navigateur (fréquent quand il est ouvert en double-clic, sans serveur). Ouvre-le via GitHub Pages ou un serveur local (ex. python3 -m http.server), puis réessaie."
+        );
+      } else {
+        setExportHtmlError("L'export a échoué — réessaie.");
+      }
+    } finally {
+      setExportHtmlBusy(false);
     }
   }
 
@@ -2788,9 +2886,30 @@ function LandsraadGalaxyMap() {
         </div>
       </div>
 
+      <div className="absolute top-1/2 left-4 -translate-y-1/2 flex flex-col gap-1 pointer-events-auto">
+        <button
+          onClick={zoomIn}
+          className="lgm-btn flex items-center justify-center rounded"
+          style={{ ...toolbarBtnStyle(false), width: 30, height: 30 }}
+          title="Zoomer"
+          aria-label="Zoomer"
+        >
+          <Plus size={15} />
+        </button>
+        <button
+          onClick={zoomOut}
+          className="lgm-btn flex items-center justify-center rounded"
+          style={{ ...toolbarBtnStyle(false), width: 30, height: 30 }}
+          title="Dézoomer"
+          aria-label="Dézoomer"
+        >
+          <Minus size={15} />
+        </button>
+      </div>
+
       {!editMode && !selectedPlanet && (
         <div className="absolute bottom-4 right-4 text-xs pointer-events-none" style={{ color: COLORS.textMuted }}>
-          glisser pour tourner · molette pour zoomer · clic sur une planète
+          glisser pour tourner · molette ou boutons +/− pour zoomer · clic sur une planète
         </div>
       )}
 
@@ -3080,6 +3199,28 @@ function LandsraadGalaxyMap() {
             )}
             <p className="text-xs leading-relaxed" style={{ color: COLORS.textMuted }}>
               Le fichier exporté inclut les images personnalisées et peut être partagé ou rechargé sur un autre appareil.
+            </p>
+
+            <button
+              onClick={handleExportHtml}
+              disabled={!imagesLoaded || exportHtmlBusy}
+              title={imagesLoaded ? '' : 'Chargement des images en cours…'}
+              className="lgm-btn w-full flex items-center justify-center gap-1.5 text-xs px-3 py-2 rounded"
+              style={{
+                ...toolbarBtnStyle(false),
+                opacity: imagesLoaded && !exportHtmlBusy ? 1 : 0.5,
+                cursor: imagesLoaded && !exportHtmlBusy ? 'pointer' : 'not-allowed',
+              }}
+            >
+              <Download size={13} /> {exportHtmlBusy ? 'Génération…' : 'Exporter le .html (sauvegarde intégrée)'}
+            </button>
+            {exportHtmlError && (
+              <p className="text-xs leading-relaxed" style={{ color: COLORS.crimson }}>
+                {exportHtmlError}
+              </p>
+            )}
+            <p className="text-xs leading-relaxed" style={{ color: COLORS.textMuted }}>
+              Génère une copie de cette page avec les données actuelles écrites dans le fichier lui-même. Remplace le .html du dépôt GitHub par ce fichier : il s'ouvrira directement avec cette carte, sans dépendre du localStorage du navigateur.
             </p>
           </div>
 
